@@ -10,12 +10,20 @@ import { EmptyState } from "@/components/states/empty-state";
 import type { ListingItem } from "@/lib/marketplace";
 import { filterListings, listings as fallbackListings } from "@/lib/marketplace";
 
+type SortBy = "recommended" | "price_low" | "price_high" | "distance" | "pickup_soon";
+
+const SAVED_LISTINGS_KEY = "nw-saved-listings";
+
 export function MarketplaceFeed() {
   const [keyword, setKeyword] = useState("");
   const [maxDistanceMiles, setMaxDistanceMiles] = useState<number | "">("");
   const [pickupPart, setPickupPart] = useState<"any" | "afternoon" | "evening" | "night">("any");
   const [dietary, setDietary] = useState<"any" | "vegan" | "vegetarian" | "gluten_free" | "dairy_free">("any");
   const [maxPriceCents, setMaxPriceCents] = useState<number | "">("");
+  const [sortBy, setSortBy] = useState<SortBy>("recommended");
+  const [onlyAvailable, setOnlyAvailable] = useState(true);
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
   const [sourceListings, setSourceListings] = useState<ListingItem[]>(fallbackListings);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -54,61 +62,172 @@ export function MarketplaceFeed() {
     };
   }, []);
 
-  const filtered = useMemo(
-    () =>
-      filterListings(sourceListings, {
-        keyword: keyword || undefined,
-        maxDistanceMiles: maxDistanceMiles === "" ? undefined : maxDistanceMiles,
-        pickupPart,
-        dietary,
-        maxPriceCents: maxPriceCents === "" ? undefined : maxPriceCents,
-      }),
-    [dietary, keyword, maxDistanceMiles, maxPriceCents, pickupPart, sourceListings],
-  );
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SAVED_LISTINGS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        setSavedIds(parsed.filter((value): value is string => typeof value === "string"));
+      }
+    } catch {
+      // Ignore local parsing issues and start clean.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(SAVED_LISTINGS_KEY, JSON.stringify(savedIds));
+  }, [savedIds]);
+
+  const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
+
+  const filtered = useMemo(() => {
+    let next = filterListings(sourceListings, {
+      keyword: keyword || undefined,
+      maxDistanceMiles: maxDistanceMiles === "" ? undefined : maxDistanceMiles,
+      pickupPart,
+      dietary,
+      maxPriceCents: maxPriceCents === "" ? undefined : maxPriceCents,
+    });
+
+    if (onlyAvailable) {
+      next = next.filter((listing) => listing.quantityRemaining > 0);
+    }
+
+    if (savedOnly) {
+      next = next.filter((listing) => savedSet.has(listing.id));
+    }
+
+    const sorted = [...next];
+    sorted.sort((a, b) => {
+      if (sortBy === "price_low") return a.priceCents - b.priceCents;
+      if (sortBy === "price_high") return b.priceCents - a.priceCents;
+      if (sortBy === "distance") return a.distanceMiles - b.distanceMiles;
+      if (sortBy === "pickup_soon") {
+        return new Date(a.pickupWindowStart).getTime() - new Date(b.pickupWindowStart).getTime();
+      }
+
+      const aSaved = savedSet.has(a.id) ? 1 : 0;
+      const bSaved = savedSet.has(b.id) ? 1 : 0;
+      if (aSaved !== bSaved) return bSaved - aSaved;
+      return a.distanceMiles - b.distanceMiles;
+    });
+
+    return sorted;
+  }, [
+    dietary,
+    keyword,
+    maxDistanceMiles,
+    maxPriceCents,
+    onlyAvailable,
+    pickupPart,
+    savedOnly,
+    savedSet,
+    sortBy,
+    sourceListings,
+  ]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (keyword.trim().length > 0) count += 1;
+    if (maxDistanceMiles !== "") count += 1;
+    if (pickupPart !== "any") count += 1;
+    if (dietary !== "any") count += 1;
+    if (maxPriceCents !== "") count += 1;
+    if (onlyAvailable) count += 1;
+    if (savedOnly) count += 1;
+    if (sortBy !== "recommended") count += 1;
+    return count;
+  }, [dietary, keyword, maxDistanceMiles, maxPriceCents, onlyAvailable, pickupPart, savedOnly, sortBy]);
+
+  const stats = useMemo(() => {
+    if (filtered.length === 0) {
+      return { count: 0, avgPriceCents: 0, nearestMiles: null as number | null };
+    }
+
+    const totalPrice = filtered.reduce((sum, listing) => sum + listing.priceCents, 0);
+    const nearest = filtered.reduce((min, listing) => Math.min(min, listing.distanceMiles), Number.POSITIVE_INFINITY);
+    return {
+      count: filtered.length,
+      avgPriceCents: Math.round(totalPrice / filtered.length),
+      nearestMiles: Number.isFinite(nearest) ? nearest : null,
+    };
+  }, [filtered]);
+
+  function toggleSaved(listingId: string) {
+    setSavedIds((previous) => {
+      if (previous.includes(listingId)) {
+        return previous.filter((id) => id !== listingId);
+      }
+      return [...previous, listingId];
+    });
+  }
+
+  function resetFilters() {
+    setKeyword("");
+    setMaxDistanceMiles("");
+    setPickupPart("any");
+    setDietary("any");
+    setMaxPriceCents("");
+    setSortBy("recommended");
+    setOnlyAvailable(true);
+    setSavedOnly(false);
+  }
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-4 border-neutral-200/80">
+      <Card className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-title-md">Find nearby surplus</h2>
             <p className="text-sm text-neutral-600">Fresh listings from restaurants in your area.</p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setKeyword("");
-              setMaxDistanceMiles("");
-              setPickupPart("any");
-              setDietary("any");
-              setMaxPriceCents("");
-            }}
-          >
-            Reset filters
-          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant="neutral">{activeFilterCount} active filters</Badge>
+            <Badge variant="brand">{savedIds.length} saved</Badge>
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              Reset
+            </Button>
+          </div>
         </div>
 
-        <Input
-          label="Search by keyword"
-          placeholder="Meals, bakery, neighborhood..."
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-        />
-
         <div className="grid gap-3 md:grid-cols-2">
+          <Input
+            label="Search by keyword"
+            placeholder="Meals, bakery, neighborhood..."
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+          />
+
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-neutral-800">Sort</span>
+            <select
+              className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SortBy)}
+            >
+              <option value="recommended">Recommended</option>
+              <option value="pickup_soon">Pickup soonest</option>
+              <option value="distance">Nearest first</option>
+              <option value="price_low">Price low to high</option>
+              <option value="price_high">Price high to low</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-neutral-800">Nearby (miles)</span>
             <input
               type="number"
+              min={0}
               className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
               placeholder="Any"
               value={maxDistanceMiles}
-              onChange={(event) =>
-                setMaxDistanceMiles(
-                  event.target.value === "" ? "" : Number(event.target.value),
-                )
-              }
+              onChange={(event) => {
+                const value = event.target.value;
+                setMaxDistanceMiles(value === "" ? "" : Math.max(0, Number(value)));
+              }}
             />
           </label>
 
@@ -118,9 +237,7 @@ export function MarketplaceFeed() {
               className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
               value={pickupPart}
               onChange={(event) =>
-                setPickupPart(
-                  event.target.value as "any" | "afternoon" | "evening" | "night",
-                )
+                setPickupPart(event.target.value as "any" | "afternoon" | "evening" | "night")
               }
             >
               <option value="any">Any</option>
@@ -129,9 +246,7 @@ export function MarketplaceFeed() {
               <option value="night">Night</option>
             </select>
           </label>
-        </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-neutral-800">Dietary</span>
             <select
@@ -155,11 +270,14 @@ export function MarketplaceFeed() {
               <option value="dairy_free">Dairy-free</option>
             </select>
           </label>
+        </div>
 
+        <div className="grid gap-3 md:grid-cols-3">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-neutral-800">Max price (USD)</span>
             <input
               type="number"
+              min={0}
               className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
               placeholder="Any"
               value={maxPriceCents === "" ? "" : (maxPriceCents / 100).toString()}
@@ -170,12 +288,47 @@ export function MarketplaceFeed() {
                   return;
                 }
                 const numeric = Number(dollars);
-                setMaxPriceCents(Number.isFinite(numeric) ? Math.round(numeric * 100) : "");
+                setMaxPriceCents(Number.isFinite(numeric) ? Math.round(Math.max(0, numeric) * 100) : "");
               }}
             />
           </label>
+
+          <label className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800">
+            <input
+              type="checkbox"
+              checked={onlyAvailable}
+              onChange={(event) => setOnlyAvailable(event.target.checked)}
+            />
+            Only available now
+          </label>
+
+          <label className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800">
+            <input
+              type="checkbox"
+              checked={savedOnly}
+              onChange={(event) => setSavedOnly(event.target.checked)}
+            />
+            Saved picks only
+          </label>
         </div>
       </Card>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="border-neutral-200/80">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Results</p>
+          <p className="mt-1 text-lg font-semibold text-neutral-900">{stats.count}</p>
+        </Card>
+        <Card className="border-neutral-200/80">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Average price</p>
+          <p className="mt-1 text-lg font-semibold text-neutral-900">${(stats.avgPriceCents / 100).toFixed(2)}</p>
+        </Card>
+        <Card className="border-neutral-200/80">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Closest pickup</p>
+          <p className="mt-1 text-lg font-semibold text-neutral-900">
+            {stats.nearestMiles === null ? "-" : `${stats.nearestMiles.toFixed(1)} mi`}
+          </p>
+        </Card>
+      </div>
 
       {loadError ? (
         <Card className="border-red-200 bg-red-50 text-red-800">
@@ -201,54 +354,78 @@ export function MarketplaceFeed() {
         />
       ) : (
         <div className="grid gap-3">
-          {filtered.map((listing) => (
-            <Card key={listing.id} className="space-y-3 border-neutral-200/80">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-neutral-900">{listing.title}</h3>
-                <p className="text-sm font-semibold text-neutral-800">
-                  ${(listing.priceCents / 100).toFixed(2)}
+          {filtered.map((listing) => {
+            const isSaved = savedSet.has(listing.id);
+            const soldOut = listing.quantityRemaining <= 0;
+
+            return (
+              <Card
+                key={listing.id}
+                className="space-y-3 border-neutral-200/80 transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-base font-semibold text-neutral-900">{listing.title}</h3>
+                  <p className="text-sm font-semibold text-neutral-800">
+                    ${(listing.priceCents / 100).toFixed(2)}
+                  </p>
+                </div>
+
+                <p className="text-sm text-neutral-600">{listing.description}</p>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {listing.dietary.length > 0 ? (
+                    listing.dietary.map((tag) => (
+                      <Badge key={tag} variant="neutral">
+                        {tag.replaceAll("_", " ")}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="neutral">chef selection</Badge>
+                  )}
+                  <Badge variant={soldOut ? "danger" : "brand"}>
+                    {soldOut ? "Sold out" : `${listing.quantityRemaining} left`}
+                  </Badge>
+                  {isSaved ? <Badge variant="success">Saved</Badge> : null}
+                </div>
+
+                <p className="text-xs text-neutral-500">
+                  {listing.restaurantName} · {listing.distanceMiles.toFixed(1)} mi · Pickup{" "}
+                  {new Date(listing.pickupWindowStart).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
                 </p>
-              </div>
 
-              <p className="text-sm text-neutral-600">{listing.description}</p>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                {listing.dietary.length > 0 ? (
-                  listing.dietary.map((tag) => (
-                    <Badge key={tag} variant="neutral">
-                      {tag.replace("_", " ")}
-                    </Badge>
-                  ))
-                ) : (
-                  <Badge variant="neutral">chef selection</Badge>
-                )}
-                <Badge variant="brand">{listing.quantityRemaining} left</Badge>
-              </div>
-
-              <p className="text-xs text-neutral-500">
-                {listing.restaurantName} · {listing.distanceMiles} mi · Pickup{" "}
-                {new Date(listing.pickupWindowStart).toLocaleTimeString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </p>
-
-              <div className="flex gap-2">
-                <Link
-                  href={`/listings/${listing.id}`}
-                  className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-                >
-                  View listing
-                </Link>
-                <Link
-                  href={`/restaurants/${listing.restaurantId}`}
-                  className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
-                >
-                  Restaurant
-                </Link>
-              </div>
-            </Card>
-          ))}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleSaved(listing.id)}
+                    className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+                  >
+                    {isSaved ? "Unsave" : "Save"}
+                  </button>
+                  {soldOut ? (
+                    <span className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-200 px-3 text-sm font-medium text-neutral-500">
+                      Checkout unavailable
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/checkout/${listing.id}`}
+                      className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                    >
+                      Quick reserve
+                    </Link>
+                  )}
+                  <Link
+                    href={`/listings/${listing.id}`}
+                    className="inline-flex h-9 items-center justify-center rounded-xl bg-white px-3 text-sm font-medium text-neutral-900 ring-1 ring-neutral-300 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+                  >
+                    View listing
+                  </Link>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
