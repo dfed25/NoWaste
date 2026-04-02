@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { systemCancelOrder, updateOrderPaymentState } from "@/lib/order-store";
 import { restoreListingQuantityById } from "@/lib/marketplace-store";
+import { hasProcessedStripeEvent, markStripeEventProcessed } from "@/lib/stripe-event-store";
 
 export async function POST(request: Request) {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -27,6 +28,11 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
+  }
+
+  const alreadyProcessed = await hasProcessedStripeEvent(event.id);
+  if (alreadyProcessed) {
+    return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
   }
 
   if (event.type === "checkout.session.completed") {
@@ -73,6 +79,8 @@ export async function POST(request: Request) {
       }
     }
   }
+
+  await markStripeEventProcessed(event.id, event.type);
 
   return NextResponse.json({ received: true }, { status: 200 });
 }
