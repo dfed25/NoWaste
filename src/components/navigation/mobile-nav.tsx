@@ -8,7 +8,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/listings", label: "Listings" },
-  { href: "/orders", label: "Orders" },
+  { href: "/account/settings", label: "Account" },
 ];
 
 export function MobileNav() {

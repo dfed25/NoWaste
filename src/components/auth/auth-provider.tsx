@@ -1,0 +1,104 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import {
+  AUTH_COOKIE_NAME,
+  getSupabaseBrowserClient,
+} from "@/lib/supabase/client";
+
+type AuthContextValue = {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  signOut: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let supabase;
+    let mounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      setSession(null);
+      setIsLoading(false);
+      syncAuthCookie(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      setIsLoading(false);
+      syncAuthCookie(Boolean(data.session));
+    });
+
+    ({
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      syncAuthCookie(Boolean(nextSession));
+    }));
+
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user: session?.user ?? null,
+      session,
+      isLoading,
+      signOut: async () => {
+        try {
+          const supabase = getSupabaseBrowserClient();
+          await supabase.auth.signOut();
+        } finally {
+          setSession(null);
+          syncAuthCookie(false);
+        }
+      },
+    }),
+    [isLoading, session],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+}
+
+function syncAuthCookie(isAuthenticated: boolean) {
+  if (typeof document === "undefined") return;
+
+  if (isAuthenticated) {
+    document.cookie = `${AUTH_COOKIE_NAME}=1; Path=/; Max-Age=604800; SameSite=Lax`;
+  } else {
+    document.cookie = `${AUTH_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+  }
+}
+

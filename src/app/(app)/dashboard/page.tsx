@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import { SessionStatusCard } from "@/components/auth/session-status-card";
 
 export default function DashboardPage() {
   return (
@@ -18,6 +19,7 @@ export default function DashboardPage() {
           <StatusIndicator status="donation_eligible" />
         </div>
       </Card>
+      <SessionStatusCard />
     </section>
   );
 }

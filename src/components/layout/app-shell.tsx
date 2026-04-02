@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { AuthNavActions } from "@/components/auth/auth-nav-actions";
 import { MobileNav } from "@/components/navigation/mobile-nav";
 
 type AppShellProps = {
@@ -24,7 +25,13 @@ export function AppShell({ children }: AppShellProps) {
             <Link href="/orders" className="hover:text-neutral-900">
               Orders
             </Link>
+            <Link href="/onboarding/restaurant" className="hover:text-neutral-900">
+              Onboarding
+            </Link>
           </nav>
+          <div className="hidden md:block">
+            <AuthNavActions />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:px-6 md:pb-8">
