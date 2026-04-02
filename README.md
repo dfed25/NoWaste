@@ -35,6 +35,7 @@ Required keys:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
 - `AUTH_SESSION_SECRET`
 - `EXPIRE_RESERVATIONS_SECRET`
 
@@ -49,6 +50,11 @@ Required keys:
 - `STRIPE_SECRET_KEY`
   - Create/login to [Stripe](https://dashboard.stripe.com/).
   - Use Developers -> API keys -> Secret key (test key for local).
+
+- `STRIPE_WEBHOOK_SECRET`
+  - In Stripe Dashboard: Developers -> Webhooks, create an endpoint for `/api/stripe/webhook`.
+  - Copy the endpoint signing secret into `STRIPE_WEBHOOK_SECRET`.
+  - Local development: run `stripe listen --forward-to localhost:3000/api/stripe/webhook` and use the displayed signing secret.
 
 - `AUTH_SESSION_SECRET`
   - Random 32+ byte secret used for server-side session signature checks.
@@ -111,6 +117,7 @@ App runs at `http://localhost:3000`.
 - `POST /api/listings` - create listing (auth + role scoped)
 - `POST /api/checkout/session` - create Stripe checkout session
 - `POST /api/jobs/expire-reservations` - secure expiration job endpoint
+- `POST /api/stripe/webhook` - Stripe event finalization for payment status
 - `GET /api/admin/reports/csv` - admin-only CSV export
 
 ## Repository Notes

@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import Stripe from "stripe";
-import { getListingById } from "@/lib/marketplace";
+import {
+  attachOrderStripeSession,
+  createReservedOrder,
+  systemCancelOrder,
+  updateOrderPaymentState,
+} from "@/lib/order-store";
+import {
+  getListingByIdFromStore,
+  reserveListingQuantityById,
+  restoreListingQuantityById,
+} from "@/lib/marketplace-store";
 
 type CheckoutBody = {
   listingId: string;
@@ -41,6 +52,29 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
   );
 }
 
+function deriveCustomerId(email: string, fallbackId?: string) {
+  if (fallbackId && fallbackId.length > 0) return fallbackId;
+  return `guest:${email.trim().toLowerCase()}`;
+}
+function readUserIdFromCookieHeader(request: Request) {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+async function readUserIdFromCookie(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const value = cookieStore.get("nw-user-id")?.value;
+    if (value) return value;
+  } catch {
+    // During direct route unit tests there may be no request scope for cookies().
+  }
+
+  return readUserIdFromCookieHeader(request);
+}
+
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -52,33 +86,47 @@ export async function POST(request: Request) {
   if (!isValidCheckoutBody(body)) {
     return NextResponse.json({ error: "Invalid checkout request" }, { status: 400 });
   }
+
   const quantity = Number(body.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) {
     return NextResponse.json({ error: "Quantity must be an integer >= 1" }, { status: 400 });
   }
 
-  const listing = getListingById(body.listingId);
+  const listing = await getListingByIdFromStore(body.listingId);
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
-  if (listing.quantityRemaining < quantity) {
+
+  const appUrl = resolveAppOrigin(request);
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey && process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Checkout is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
+
+  const userIdFromCookie = await readUserIdFromCookie(request);
+  const customerId = deriveCustomerId(body.customer.email, userIdFromCookie);
+
+  const reservedListing = await reserveListingQuantityById(listing.id, quantity);
+  if (!reservedListing) {
     return NextResponse.json({ error: "Not enough listing quantity available" }, { status: 400 });
   }
 
-  const appUrl = resolveAppOrigin(request);
-  const confirmationUrl = `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
-    listing.id,
-  )}&quantity=${quantity}`;
+  const order = await createReservedOrder({
+    listing: reservedListing,
+    quantity,
+    customer: body.customer,
+    customerId,
+  });
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const confirmationUrl = `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
+    order.id,
+  )}`;
+
   if (!stripeSecretKey) {
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Checkout is temporarily unavailable." },
-        { status: 503 },
-      );
-    }
-    // Dev fallback so frontend flow remains testable without keys.
+    await updateOrderPaymentState(order.id, "paid");
     return NextResponse.json({ confirmationUrl });
   }
 
@@ -89,7 +137,8 @@ export async function POST(request: Request) {
       mode: "payment",
       customer_email: body.customer.email,
       metadata: {
-        listingId: listing.id,
+        orderId: order.id,
+        listingId: reservedListing.id,
         customerName: body.customer.name,
         customerPhone: body.customer.phone,
         quantity: String(quantity),
@@ -99,22 +148,48 @@ export async function POST(request: Request) {
           quantity,
           price_data: {
             currency: "usd",
-            unit_amount: listing.priceCents,
+            unit_amount: reservedListing.priceCents,
             product_data: {
-              name: listing.title,
+              name: reservedListing.title,
             },
           },
         },
       ],
-      success_url: `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
-        listing.id,
-      )}&quantity=${quantity}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
+      success_url: `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
+        order.id,
+      )}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/checkout/${encodeURIComponent(reservedListing.id)}?cancelled=1`,
     });
+
+    if (session.id) {
+      await attachOrderStripeSession(order.id, session.id);
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown Stripe API failure";
     console.error("Stripe checkout session create failed:", message);
+
+    try {
+      const canceled = await systemCancelOrder(order.id, "failed");
+      if (!canceled) {
+        console.error("Rollback skipped: order already transitioned", { orderId: order.id });
+      }
+    } catch (rollbackError) {
+      console.error("Rollback failed while canceling order:", rollbackError);
+    }
+
+    try {
+      const restored = await restoreListingQuantityById(reservedListing.id, quantity);
+      if (!restored) {
+        console.error("Rollback failed while restoring listing inventory", {
+          listingId: reservedListing.id,
+          quantity,
+        });
+      }
+    } catch (rollbackError) {
+      console.error("Rollback threw while restoring listing inventory:", rollbackError);
+    }
+
     return NextResponse.json(
       { error: "Unable to initialize payment session" },
       { status: 502 },
@@ -123,4 +198,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ checkoutUrl: session.url });
 }
-
