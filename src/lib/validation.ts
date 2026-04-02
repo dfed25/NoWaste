@@ -92,9 +92,12 @@ export const donationPartnerProfileSchema = z.object({
   contactEmail: z.email("Valid contact email is required"),
   serviceRadiusMiles: z.number().positive("Service radius must be positive"),
   startHour: z.number().int().min(0).max(23),
-  endHour: z.number().int().min(1).max(24),
+  endHour: z.number().int().min(0).max(23),
   smsEnabled: z.boolean(),
   emailEnabled: z.boolean(),
+}).refine((value) => value.endHour > value.startHour, {
+  path: ["endHour"],
+  message: "End hour must be after start hour",
 });
 
 export const notificationPreferenceSchema = z.object({

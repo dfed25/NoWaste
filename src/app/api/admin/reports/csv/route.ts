@@ -1,28 +1,14 @@
 import { NextResponse } from "next/server";
 import { buildCsvExport } from "@/lib/admin-reporting";
-import { ADMIN_ROLE_COOKIE, hasAdminAccess } from "@/lib/admin";
-
-const AUTH_COOKIE_NAME = "nw-authenticated";
+import { hasAdminAccess } from "@/lib/admin";
+import { verifyServerSession } from "@/lib/server-session";
 
 export async function GET(request: Request) {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookies = Object.fromEntries(
-    cookieHeader
-      .split(";")
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((pair) => {
-        const index = pair.indexOf("=");
-        if (index < 0) return [pair, ""];
-        return [pair.slice(0, index), decodeURIComponent(pair.slice(index + 1))];
-      }),
-  );
-  const isAuthenticated = cookies[AUTH_COOKIE_NAME] === "1";
-  const role = cookies[ADMIN_ROLE_COOKIE];
-  if (!isAuthenticated) {
+  const session = verifyServerSession(request);
+  if (!session.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!hasAdminAccess(isAuthenticated, role)) {
+  if (!hasAdminAccess(session.isAuthenticated, session.user?.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

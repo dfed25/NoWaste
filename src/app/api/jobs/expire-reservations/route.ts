@@ -24,7 +24,10 @@ export async function POST(request: Request) {
   }));
 
   const updated = expireStaleReservations(input);
-  const expiredCount = updated.filter((order) => order.fulfillmentStatus === "expired").length;
+  const expiredCount = updated.filter((order, index) => {
+    const previous = input[index];
+    return previous?.fulfillmentStatus !== "expired" && order.fulfillmentStatus === "expired";
+  }).length;
 
   return NextResponse.json({
     ok: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,16 @@ import {
 export function DonationOpsConsole() {
   const [queue, setQueue] = useState<DonationReadyItem[]>([]);
   const [claimError, setClaimError] = useState<string | null>(null);
-  const candidates = useMemo(() => autoFlagUnsoldListingsNearingClose(listings), []);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const candidates = useMemo(
+    () => autoFlagUnsoldListingsNearingClose(listings, new Date(nowTick)),
+    [nowTick],
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   function handleConvert() {
     setQueue(candidates.map(convertToDonationReadyItem));
@@ -40,12 +49,30 @@ export function DonationOpsConsole() {
   }
 
   function handlePickup(itemId: string) {
-    setQueue((prev) => prev.map((item) => (item.id === itemId ? markDonationPickedUp(item) : item)));
+    setClaimError(null);
+    setQueue((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const next = markDonationPickedUp(item);
+        if (next.status === item.status) {
+          setClaimError("Donation must be claimed before pickup can be marked.");
+        }
+        return next;
+      }),
+    );
   }
 
   function handleComplete(itemId: string) {
+    setClaimError(null);
     setQueue((prev) =>
-      prev.map((item) => (item.id === itemId ? markDonationCompleted(item) : item)),
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const next = markDonationCompleted(item);
+        if (next.status === item.status) {
+          setClaimError("Donation must be picked up before completion can be logged.");
+        }
+        return next;
+      }),
     );
   }
 
@@ -89,6 +116,7 @@ export function DonationOpsConsole() {
                       size="sm"
                       variant="secondary"
                       onClick={() => handleClaim(item.id, partner.id)}
+                      disabled={item.status !== "donation_ready"}
                     >
                       Notify + claim by {partner.name}
                     </Button>
@@ -109,7 +137,11 @@ export function DonationOpsConsole() {
             );
           })
         )}
-        {claimError ? <p className="text-xs text-red-600">{claimError}</p> : null}
+        {claimError ? (
+          <p className="text-xs text-red-600" role="alert" aria-live="polite" aria-atomic="true">
+            {claimError}
+          </p>
+        ) : null}
       </Card>
     </div>
   );
