@@ -1,22 +1,23 @@
 ## APP-38 Customer checkout flow
 
 ### Primary goal
-Reserve a pickup slot/quantity for a specific listing (and complete payment if applicable).
+Reserve quantity within a pickup window for a paid consumer listing.
 
 ### Preconditions
 - Customer is viewing `Listing detail`.
-- Listing is `Published` and has enough available quantity (or capacity).
+- Listing is `active`, `consumer` type, and has enough quantity.
 
 ### Main happy path (checkout)
 1. Customer opens `Listing detail`.
-2. Customer selects desired quantity (and optionally pickup time slot within the window).
+2. Customer selects desired quantity and the restaurant-defined pickup window.
 3. Customer clicks `Reserve & checkout`.
-4. UI shows `Checkout screen` (review pickup info + total).
-5. If payment is enabled:
-   - Customer clicks `Pay with Stripe` -> redirected to Stripe checkout.
-   - After completion, app receives success redirect or server verifies via webhook.
-6. Reservation is confirmed/created as `Confirmed`.
-7. Customer sees a `Confirmation` state/screen and can access pickup confirmation flow.
+4. Guest checkout form requires:
+   - name
+   - email
+   - phone number
+5. Customer clicks `Pay with Stripe` -> redirected to Stripe checkout.
+6. Reservation is confirmed only after successful payment verification.
+7. Order transitions to `reserved`.
 
 ### UI states
 - Disabled reserve button when quantity invalid.
@@ -35,4 +36,5 @@ Reserve a pickup slot/quantity for a specific listing (and complete payment if a
 - Always verify Stripe payment success server-side before marking reservation `Confirmed`.
 - Prevent double-booking with server-side transactional checks (quantity/capacity).
 - Never expose reservation internals publicly beyond what’s required for pickup confirmation.
+- Do not allow checkout for `donation` listings from customer routes.
 
