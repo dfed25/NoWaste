@@ -201,3 +201,32 @@ export function qualifiesForRefund(order: CustomerOrder) {
   return order.fulfillmentStatus === "expired" || order.fulfillmentStatus === "missed_pickup";
 }
 
+export function editListing(
+  listing: ListingItem,
+  updates: Partial<Pick<ListingItem, "title" | "description" | "priceCents" | "quantityRemaining">>,
+) {
+  return { ...listing, ...updates };
+}
+
+export function reserveListingQuantity(
+  listing: ListingItem,
+  quantity: number,
+): { ok: true; updated: ListingItem } | { ok: false; reason: string } {
+  if (quantity < 1) return { ok: false, reason: "Quantity must be at least 1." };
+  if (listing.quantityRemaining < quantity) {
+    return { ok: false, reason: "Not enough inventory remaining." };
+  }
+
+  return {
+    ok: true,
+    updated: {
+      ...listing,
+      quantityRemaining: listing.quantityRemaining - quantity,
+    },
+  };
+}
+
+export function isListingSoldOut(listing: ListingItem) {
+  return listing.quantityRemaining <= 0;
+}
+

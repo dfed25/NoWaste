@@ -1,4 +1,5 @@
 import { RestaurantDashboardShell } from "@/components/dashboard/restaurant-dashboard-shell";
+import Link from "next/link";
 
 export default function DashboardPage() {
   return (
@@ -10,6 +11,17 @@ export default function DashboardPage() {
         </p>
       </div>
       <RestaurantDashboardShell />
+      <div className="flex flex-wrap gap-3 text-sm">
+        <Link className="text-brand-700 hover:underline" href="/pickups/verify">
+          Pickup verification
+        </Link>
+        <Link className="text-brand-700 hover:underline" href="/donation/workflow">
+          Donation workflow
+        </Link>
+        <Link className="text-brand-700 hover:underline" href="/admin">
+          Admin panel
+        </Link>
+      </div>
     </section>
   );
 }

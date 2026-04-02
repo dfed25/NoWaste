@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "test:unit": "vitest run src/lib",
+    "test:component": "vitest run src/components",
+    "test:integration": "vitest run src/app/api",
+    "test:ci": "vitest run --reporter=dot"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

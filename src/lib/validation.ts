@@ -80,6 +80,38 @@ export const accountSettingsSchema = z.object({
   phone: z.string().min(7, "Valid phone number is required"),
 });
 
+export const pickupVerificationSchema = z.object({
+  reservationCode: z.string().min(6, "Reservation code is required"),
+  outcome: z.enum(["picked_up", "missed_pickup"]),
+  note: z.string().max(300).optional(),
+});
+
+export const donationPartnerProfileSchema = z.object({
+  organizationName: z.string().min(2, "Organization name is required"),
+  contactName: z.string().min(2, "Contact name is required"),
+  contactEmail: z.email("Valid contact email is required"),
+  serviceRadiusMiles: z.number().positive("Service radius must be positive"),
+  startHour: z.number().int().min(0).max(23),
+  endHour: z.number().int().min(1).max(24),
+  smsEnabled: z.boolean(),
+  emailEnabled: z.boolean(),
+});
+
+export const notificationPreferenceSchema = z.object({
+  email: z.boolean(),
+  sms: z.boolean(),
+  reservationConfirmed: z.boolean(),
+  pickupReminder: z.boolean(),
+  reservationCanceled: z.boolean(),
+  listingSoldOut: z.boolean(),
+  newReservation: z.boolean(),
+  pickupCompleted: z.boolean(),
+  donationFallbackTriggered: z.boolean(),
+  donationAvailable: z.boolean(),
+  donationClaimed: z.boolean(),
+  donationPickupReminder: z.boolean(),
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>;
@@ -90,4 +122,7 @@ export type RestaurantOnboardingInput = z.infer<
   typeof restaurantOnboardingSchema
 >;
 export type AccountSettingsInput = z.infer<typeof accountSettingsSchema>;
+export type PickupVerificationInput = z.infer<typeof pickupVerificationSchema>;
+export type DonationPartnerProfileInput = z.infer<typeof donationPartnerProfileSchema>;
+export type NotificationPreferenceInput = z.infer<typeof notificationPreferenceSchema>;
 
