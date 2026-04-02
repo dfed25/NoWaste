@@ -21,6 +21,10 @@ export const guestCheckoutSchema = z.object({
   phone: z.string().min(7, "Valid phone number is required"),
 });
 
+export const reservationCheckoutSchema = guestCheckoutSchema.extend({
+  quantity: z.number().int().positive(),
+});
+
 export const listingSchema = z.object({
   title: z.string().min(3, "Title is required"),
   description: z.string().min(10, "Description is required"),
@@ -80,6 +84,7 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>;
 export type GuestCheckoutInput = z.infer<typeof guestCheckoutSchema>;
+export type ReservationCheckoutInput = z.infer<typeof reservationCheckoutSchema>;
 export type ListingInput = z.infer<typeof listingSchema>;
 export type RestaurantOnboardingInput = z.infer<
   typeof restaurantOnboardingSchema

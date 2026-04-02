@@ -18,12 +18,12 @@ export function CreateListingForm() {
   const router = useRouter();
   const { pushToast } = useToast();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [photoFileName, setPhotoFileName] = useState("");
 
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(listingSchema),
@@ -41,8 +41,6 @@ export function CreateListingForm() {
       listingType: "consumer",
     },
   });
-
-  const photoFileName = watch("photoFileName");
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -144,7 +142,9 @@ export function CreateListingForm() {
             className="block rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700"
             onChange={(event) => {
               const file = event.target.files?.[0];
-              setValue("photoFileName", file?.name ?? "");
+              const next = file?.name ?? "";
+              setPhotoFileName(next);
+              setValue("photoFileName", next);
             }}
           />
           {photoFileName ? (

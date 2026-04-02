@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
+import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 
 export default function Home() {
   return (
@@ -80,6 +81,14 @@ export default function Home() {
             </Link>
           </li>
         </ul>
+      </Card>
+
+      <Card className="space-y-3">
+        <h2 className="text-title-md">Customer marketplace</h2>
+        <p className="text-body-sm text-neutral-600">
+          EPIC 9 browse feed with search and filters.
+        </p>
+        <MarketplaceFeed />
       </Card>
     </section>
   );
