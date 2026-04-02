@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getOrdersForCustomer, canCancelOrder, qualifiesForRefund } from "@/lib/marketplace";
+import { canCancelOrder, qualifiesForRefund } from "@/lib/marketplace";
+import { listAllOrders } from "@/lib/order-store";
+import { CancelReservationButton } from "@/components/orders/cancel-reservation-button";
 
-export default function OrdersPage() {
-  const orders = getOrdersForCustomer();
+export default async function OrdersPage() {
+  const orders = await listAllOrders();
 
   return (
     <section className="space-y-4">
@@ -15,6 +17,7 @@ export default function OrdersPage() {
           Reservation history, cancellation rules, and refund status.
         </p>
       </div>
+
       <div className="space-y-3">
         {orders.map((order) => {
           const canCancel = canCancelOrder(order);
@@ -28,9 +31,11 @@ export default function OrdersPage() {
                 </Badge>
               </div>
               <p className="text-xs text-neutral-600">
-                Order ID: {order.id} · Qty {order.quantity} · Total $
-                {(order.totalCents / 100).toFixed(2)}
+                Order ID: {order.id} · Qty {order.quantity} · Total ${
+                  (order.totalCents / 100).toFixed(2)
+                }
               </p>
+              <p className="text-xs text-neutral-600">Payment status: {order.paymentStatus}</p>
               <p className="text-xs text-neutral-600">
                 Pickup:{" "}
                 {new Date(order.pickupWindowStart).toLocaleTimeString([], {
@@ -44,12 +49,10 @@ export default function OrdersPage() {
                 })}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link href={`/orders/confirmation?listingId=${order.listingId}&quantity=${order.quantity}`}>
+                <Link href={`/orders/confirmation?orderId=${encodeURIComponent(order.id)}`}>
                   <Button size="sm">View pickup code</Button>
                 </Link>
-                <Button size="sm" variant="secondary" disabled={!canCancel}>
-                  {canCancel ? "Cancel reservation" : "Cancellation closed"}
-                </Button>
+                <CancelReservationButton orderId={order.id} disabled={!canCancel} />
                 <Badge variant={refundEligible ? "success" : "neutral"}>
                   Refund {refundEligible ? "eligible" : "not eligible"}
                 </Badge>
@@ -61,4 +64,3 @@ export default function OrdersPage() {
     </section>
   );
 }
-

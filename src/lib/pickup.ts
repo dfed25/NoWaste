@@ -2,7 +2,8 @@ export type PickupEventType =
   | "code_verified"
   | "picked_up"
   | "missed_pickup"
-  | "expired";
+  | "expired"
+  | "canceled";
 
 export type PickupAuditEvent = {
   id: string;
@@ -17,7 +18,7 @@ export type PickupOrder = {
   id: string;
   reservationCode: string;
   pickupWindowEnd: string;
-  fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired";
+  fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired" | "canceled";
 };
 
 export function verifyPickupCode(order: PickupOrder, code: string) {

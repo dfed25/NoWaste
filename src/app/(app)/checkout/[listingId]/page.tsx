@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { ReservationCheckoutForm } from "@/components/checkout/reservation-checkout-form";
-import { getListingById } from "@/lib/marketplace";
+import { getListingByIdFromStore } from "@/lib/marketplace-store";
 
 type CheckoutPageProps = {
   params: Promise<{ listingId: string }>;
@@ -16,7 +16,8 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
     query.cancelled === "true" ||
     (Array.isArray(query.cancelled) &&
       (query.cancelled.includes("1") || query.cancelled.includes("true")));
-  const listing = getListingById(listingId);
+
+  const listing = await getListingByIdFromStore(listingId);
   if (!listing) notFound();
 
   return (
@@ -40,6 +41,7 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
         <p className="text-sm text-neutral-700">
           Unit price: ${(listing.priceCents / 100).toFixed(2)}
         </p>
+        <p className="text-xs text-neutral-500">{listing.quantityRemaining} available</p>
       </Card>
       <ReservationCheckoutForm
         listingId={listing.id}
@@ -49,4 +51,3 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
     </section>
   );
 }
-

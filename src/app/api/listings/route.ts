@@ -2,11 +2,21 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 import { restaurants } from "@/lib/marketplace";
-import { saveListing } from "@/lib/marketplace-store";
+import { listAllListings, saveListing } from "@/lib/marketplace-store";
 import { listingSchema } from "@/lib/validation";
 
 const AUTH_COOKIE_NAME = "nw-authenticated";
 const RESTAURANT_ID_COOKIE_NAME = "nw-restaurant-id";
+
+export async function GET() {
+  try {
+    const merged = await listAllListings();
+    return NextResponse.json({ listings: merged }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load listings";
+    return NextResponse.json({ error: message }, { status: 503 });
+  }
+}
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -82,4 +92,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }
-

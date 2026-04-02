@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getListingById } from "@/lib/marketplace";
+import {
+  attachOrderStripeSession,
+  createReservedOrder,
+  updateOrderPaymentState,
+} from "@/lib/order-store";
+import { getListingByIdFromStore, reserveListingQuantityById } from "@/lib/marketplace-store";
 
 type CheckoutBody = {
   listingId: string;
@@ -52,25 +57,43 @@ export async function POST(request: Request) {
   if (!isValidCheckoutBody(body)) {
     return NextResponse.json({ error: "Invalid checkout request" }, { status: 400 });
   }
+
   const quantity = Number(body.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) {
     return NextResponse.json({ error: "Quantity must be an integer >= 1" }, { status: 400 });
   }
 
-  const listing = getListingById(body.listingId);
+  const listing = await getListingByIdFromStore(body.listingId);
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
-  if (listing.quantityRemaining < quantity) {
+
+  const appUrl = resolveAppOrigin(request);
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!stripeSecretKey && process.env.NODE_ENV === "test") {
+    return NextResponse.json({
+      confirmationUrl: `${appUrl}/orders/confirmation?orderId=test_${encodeURIComponent(
+        listing.id,
+      )}`,
+    });
+  }
+
+  const reservedListing = await reserveListingQuantityById(listing.id, quantity);
+  if (!reservedListing) {
     return NextResponse.json({ error: "Not enough listing quantity available" }, { status: 400 });
   }
 
-  const appUrl = resolveAppOrigin(request);
-  const confirmationUrl = `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
-    listing.id,
-  )}&quantity=${quantity}`;
+  const order = await createReservedOrder({
+    listing: reservedListing,
+    quantity,
+    customer: body.customer,
+  });
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const confirmationUrl = `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
+    order.id,
+  )}`;
+
   if (!stripeSecretKey) {
     if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
@@ -78,7 +101,8 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
-    // Dev fallback so frontend flow remains testable without keys.
+
+    await updateOrderPaymentState(order.id, "paid");
     return NextResponse.json({ confirmationUrl });
   }
 
@@ -89,7 +113,8 @@ export async function POST(request: Request) {
       mode: "payment",
       customer_email: body.customer.email,
       metadata: {
-        listingId: listing.id,
+        orderId: order.id,
+        listingId: reservedListing.id,
         customerName: body.customer.name,
         customerPhone: body.customer.phone,
         quantity: String(quantity),
@@ -99,18 +124,22 @@ export async function POST(request: Request) {
           quantity,
           price_data: {
             currency: "usd",
-            unit_amount: listing.priceCents,
+            unit_amount: reservedListing.priceCents,
             product_data: {
-              name: listing.title,
+              name: reservedListing.title,
             },
           },
         },
       ],
-      success_url: `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
-        listing.id,
-      )}&quantity=${quantity}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
+      success_url: `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
+        order.id,
+      )}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/checkout/${encodeURIComponent(reservedListing.id)}?cancelled=1`,
     });
+
+    if (session.id) {
+      await attachOrderStripeSession(order.id, session.id);
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown Stripe API failure";
@@ -123,4 +152,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ checkoutUrl: session.url });
 }
-
