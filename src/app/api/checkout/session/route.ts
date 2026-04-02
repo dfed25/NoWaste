@@ -16,8 +16,8 @@ import {
   createCustomerId,
   encodeSignedCustomerId,
   getCustomerIdCookieName,
-  parseSignedCustomerId,
-  parseSignedCustomerIdFromCookieHeader,
+  parseCustomerIdCookie,
+  parseCustomerIdCookieFromCookieHeader,
 } from "@/lib/customer-id-cookie";
 
 type CheckoutBody = {
@@ -29,6 +29,11 @@ type CheckoutBody = {
     email: string;
     phone: string;
   };
+};
+
+type CustomerCookieResult = {
+  customerId?: string;
+  needsResign: boolean;
 };
 
 function resolveAppOrigin(request: Request) {
@@ -64,21 +69,21 @@ function deriveCustomerId(existingCustomerId?: string) {
   return createCustomerId();
 }
 
-async function readUserIdFromCookie(request: Request) {
+async function readUserIdFromCookie(request: Request): Promise<CustomerCookieResult> {
   try {
     const cookieStore = await cookies();
     const value = cookieStore.get(getCustomerIdCookieName())?.value;
-    const parsed = parseSignedCustomerId(value);
-    if (parsed) return parsed;
+    const parsed = parseCustomerIdCookie(value);
+    if (parsed.customerId) return parsed;
   } catch {
     // During direct route unit tests there may be no request scope for cookies().
   }
 
-  return parseSignedCustomerIdFromCookieHeader(request);
+  return parseCustomerIdCookieFromCookieHeader(request);
 }
 
-function withCustomerCookie(response: NextResponse, customerId: string, existingCustomerId?: string) {
-  if (existingCustomerId) return response;
+function withCustomerCookie(response: NextResponse, customerId: string, shouldSetCookie: boolean) {
+  if (!shouldSetCookie) return response;
 
   const encoded = encodeSignedCustomerId(customerId);
   if (!encoded) {
@@ -127,8 +132,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const userIdFromCookie = await readUserIdFromCookie(request);
-  const customerId = deriveCustomerId(userIdFromCookie);
+  const customerCookie = await readUserIdFromCookie(request);
+  const customerId = deriveCustomerId(customerCookie.customerId);
+  const shouldSetCustomerCookie = !customerCookie.customerId || customerCookie.needsResign;
 
   const reservedListing = await reserveListingQuantityById(listing.id, quantity);
   if (!reservedListing) {
@@ -149,7 +155,7 @@ export async function POST(request: Request) {
   if (!stripeSecretKey) {
     await updateOrderPaymentState(order.id, "paid");
     const response = NextResponse.json({ confirmationUrl });
-    return withCustomerCookie(response, customerId, userIdFromCookie);
+    return withCustomerCookie(response, customerId, shouldSetCustomerCookie);
   }
 
   const stripe = new Stripe(stripeSecretKey);
@@ -219,5 +225,5 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ checkoutUrl: session.url });
-  return withCustomerCookie(response, customerId, userIdFromCookie);
+  return withCustomerCookie(response, customerId, shouldSetCustomerCookie);
 }

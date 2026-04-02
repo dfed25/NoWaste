@@ -2,6 +2,11 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 const CUSTOMER_ID_COOKIE_NAME = "nw-user-id";
 
+type ParsedCustomerId = {
+  customerId?: string;
+  needsResign: boolean;
+};
+
 function safeDecode(value: string) {
   try {
     return decodeURIComponent(value);
@@ -25,27 +30,59 @@ function isValidSignature(customerId: string, signature: string, secret: string)
   return timingSafeEqual(expected, provided);
 }
 
-export function parseSignedCustomerId(rawValue: string | undefined) {
-  if (!rawValue) return undefined;
-  const secret = getCookieSecret();
-  if (!secret) return undefined;
+function isLegacyCustomerId(value: string) {
+  // Supports historical values used before signed cookies were introduced.
+  if (/^cust_[a-zA-Z0-9-]{8,}$/.test(value)) return true;
+  return /^guest:[^\s]+@[^\s]+\.[^\s]+$/i.test(value);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function parseCustomerIdCookie(rawValue: string | undefined): ParsedCustomerId {
+  if (!rawValue) return { needsResign: false };
 
   const separatorIndex = rawValue.lastIndexOf(".");
-  if (separatorIndex <= 0 || separatorIndex >= rawValue.length - 1) return undefined;
+  if (separatorIndex === -1) {
+    if (!isLegacyCustomerId(rawValue)) return { needsResign: false };
+    return {
+      customerId: rawValue,
+      needsResign: Boolean(getCookieSecret()),
+    };
+  }
+
+  if (separatorIndex <= 0 || separatorIndex >= rawValue.length - 1) {
+    return { needsResign: false };
+  }
+
+  const secret = getCookieSecret();
+  if (!secret) return { needsResign: false };
 
   const customerId = rawValue.slice(0, separatorIndex);
   const signature = rawValue.slice(separatorIndex + 1);
-  if (!customerId || !signature) return undefined;
-  if (!isValidSignature(customerId, signature, secret)) return undefined;
-  return customerId;
+  if (!customerId || !signature) return { needsResign: false };
+  if (!isValidSignature(customerId, signature, secret)) return { needsResign: false };
+
+  return { customerId, needsResign: false };
+}
+
+export function parseSignedCustomerId(rawValue: string | undefined) {
+  return parseCustomerIdCookie(rawValue).customerId;
+}
+
+export function parseCustomerIdCookieFromCookieHeader(request: Request): ParsedCustomerId {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const cookieNamePattern = escapeRegExp(CUSTOMER_ID_COOKIE_NAME);
+  const pattern = new RegExp(`(?:^|;\\s*)${cookieNamePattern}=([^;]+)`);
+  const match = cookieHeader.match(pattern);
+  const encoded = match?.[1];
+  if (!encoded) return { needsResign: false };
+  return parseCustomerIdCookie(safeDecode(encoded));
 }
 
 export function parseSignedCustomerIdFromCookieHeader(request: Request) {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
-  const encoded = match?.[1];
-  if (!encoded) return undefined;
-  return parseSignedCustomerId(safeDecode(encoded));
+  return parseCustomerIdCookieFromCookieHeader(request).customerId;
 }
 
 export function encodeSignedCustomerId(customerId: string) {

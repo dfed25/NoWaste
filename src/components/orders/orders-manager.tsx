@@ -59,7 +59,7 @@ function formatTime(value: string) {
 }
 
 function normalizeStatusLabel(status: CustomerOrder["fulfillmentStatus"]) {
-  return status.replace("_", " ");
+  return status.replaceAll("_", " ");
 }
 
 export function OrdersManager({ orders }: Props) {

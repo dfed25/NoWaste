@@ -70,6 +70,25 @@ export async function markOrderInventoryRestored(orderId: string) {
   });
 }
 
+export async function checkAndMarkOrderInventoryRestored(orderId: string): Promise<boolean> {
+  return runExclusive(async () => {
+    const restores = await readInventoryRestores();
+    if (restores[orderId]) return false;
+    restores[orderId] = new Date().toISOString();
+    await writeInventoryRestores(restores);
+    return true;
+  });
+}
+
+export async function clearOrderInventoryRestore(orderId: string) {
+  return runExclusive(async () => {
+    const restores = await readInventoryRestores();
+    if (!restores[orderId]) return;
+    delete restores[orderId];
+    await writeInventoryRestores(restores);
+  });
+}
+
 export async function listAllOrders(): Promise<OrderRecord[]> {
   return runExclusive(async () => {
     const persisted = await readPersistedOrders();

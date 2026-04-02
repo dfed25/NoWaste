@@ -79,12 +79,13 @@ export async function markStripeEventProcessed(eventId: string, type: string) {
   return runExclusive(async () => {
     const map = await readProcessedEvents();
     const existing = map[eventId];
+    const now = new Date().toISOString();
     map[eventId] = {
       id: eventId,
       type,
       status: "processed",
-      claimedAt: existing?.claimedAt ?? new Date().toISOString(),
-      processedAt: new Date().toISOString(),
+      claimedAt: existing?.claimedAt ?? now,
+      processedAt: now,
     };
     await writeProcessedEvents(map);
   });

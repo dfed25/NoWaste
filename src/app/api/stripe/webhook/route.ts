@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import {
+  checkAndMarkOrderInventoryRestored,
+  clearOrderInventoryRestore,
   getOrderById,
-  hasOrderInventoryRestore,
-  markOrderInventoryRestored,
   systemCancelOrder,
   updateOrderPaymentState,
 } from "@/lib/order-store";
@@ -71,18 +71,22 @@ export async function POST(request: Request) {
         const cancellation = canceled ?? (await getOrderById(orderId));
 
         if (cancellation?.fulfillmentStatus === "canceled") {
-          const alreadyRestored = await hasOrderInventoryRestore(cancellation.id);
-          if (!alreadyRestored) {
-            const restored = await restoreListingQuantityById(
-              cancellation.listingId,
-              cancellation.quantity,
-            );
-            if (!restored) {
-              throw new Error(
-                `Inventory restore returned null for listing ${cancellation.listingId}, quantity ${cancellation.quantity}`,
+          const shouldRestore = await checkAndMarkOrderInventoryRestored(cancellation.id);
+          if (shouldRestore) {
+            try {
+              const restored = await restoreListingQuantityById(
+                cancellation.listingId,
+                cancellation.quantity,
               );
+              if (!restored) {
+                throw new Error(
+                  `Inventory restore returned null for listing ${cancellation.listingId}, quantity ${cancellation.quantity}`,
+                );
+              }
+            } catch (error) {
+              await clearOrderInventoryRestore(cancellation.id);
+              throw error;
             }
-            await markOrderInventoryRestored(cancellation.id);
           }
         }
       }
