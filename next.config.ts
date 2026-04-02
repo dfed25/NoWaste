@@ -1,9 +1,14 @@
 import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
-  // Pin Turbopack root to this app directory to avoid lockfile-based root guessing.
+  // Always anchor Turbopack to this config file's directory.
+  // This avoids bad module resolution when the shell cwd is outside the app root.
   turbopack: {
-    root: process.cwd(),
+    root: projectRoot,
   },
 };
 
