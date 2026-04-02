@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 import { restaurants } from "@/lib/marketplace";
 import { saveListing } from "@/lib/marketplace-store";
@@ -7,25 +8,11 @@ import { listingSchema } from "@/lib/validation";
 const AUTH_COOKIE_NAME = "nw-authenticated";
 const RESTAURANT_ID_COOKIE_NAME = "nw-restaurant-id";
 
-function parseCookies(cookieHeader: string) {
-  return Object.fromEntries(
-    cookieHeader
-      .split(";")
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((pair) => {
-        const index = pair.indexOf("=");
-        if (index < 0) return [pair, ""];
-        return [pair.slice(0, index), decodeURIComponent(pair.slice(index + 1))];
-      }),
-  );
-}
-
 export async function POST(request: Request) {
-  const cookies = parseCookies(request.headers.get("cookie") ?? "");
-  const isAuthenticated = cookies[AUTH_COOKIE_NAME] === "1";
-  const role = cookies[ADMIN_ROLE_COOKIE];
-  const scopedRestaurantId = cookies[RESTAURANT_ID_COOKIE_NAME];
+  const cookieStore = await cookies();
+  const isAuthenticated = cookieStore.get(AUTH_COOKIE_NAME)?.value === "1";
+  const role = cookieStore.get(ADMIN_ROLE_COOKIE)?.value;
+  const scopedRestaurantId = cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value;
 
   if (!isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,12 +42,17 @@ export async function POST(request: Request) {
       : undefined;
 
   const targetRestaurantId = requestedRestaurantId ?? scopedRestaurantId;
+  if (role === "restaurant_staff" && !scopedRestaurantId) {
+    return NextResponse.json(
+      { error: "Restaurant staff must be scoped to a restaurant" },
+      { status: 403 },
+    );
+  }
   if (!targetRestaurantId) {
     return NextResponse.json({ error: "Restaurant context is required" }, { status: 400 });
   }
   if (
     role === "restaurant_staff" &&
-    scopedRestaurantId &&
     requestedRestaurantId &&
     scopedRestaurantId !== requestedRestaurantId
   ) {

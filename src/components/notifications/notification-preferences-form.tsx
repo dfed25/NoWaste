@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  defaultNotificationPreferences,
+  createDefaultNotificationPreferences,
   dispatchEventNotification,
   type NotificationEvent,
 } from "@/lib/notifications";
@@ -24,9 +24,10 @@ const eventLabels: Record<NotificationEvent, string> = {
 };
 
 export function NotificationPreferencesForm() {
-  const [email, setEmail] = useState(defaultNotificationPreferences.email);
-  const [sms, setSms] = useState(defaultNotificationPreferences.sms);
-  const [events, setEvents] = useState(defaultNotificationPreferences.events);
+  const [defaults] = useState(() => createDefaultNotificationPreferences());
+  const [email, setEmail] = useState(defaults.email);
+  const [sms, setSms] = useState(defaults.sms);
+  const [events, setEvents] = useState(defaults.events);
   const [lastSent, setLastSent] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
