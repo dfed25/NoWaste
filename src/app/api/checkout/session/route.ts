@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import Stripe from "stripe";
 import {
   attachOrderStripeSession,
@@ -55,20 +56,24 @@ function deriveCustomerId(email: string, fallbackId?: string) {
   if (fallbackId && fallbackId.length > 0) return fallbackId;
   return `guest:${email.trim().toLowerCase()}`;
 }
-
-function parseCookies(cookieHeader: string) {
-  return Object.fromEntries(
-    cookieHeader
-      .split(";")
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((pair) => {
-        const index = pair.indexOf("=");
-        if (index < 0) return [pair, ""];
-        return [pair.slice(0, index), decodeURIComponent(pair.slice(index + 1))];
-      }),
-  );
+function readUserIdFromCookieHeader(request: Request) {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
 }
+
+async function readUserIdFromCookie(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const value = cookieStore.get("nw-user-id")?.value;
+    if (value) return value;
+  } catch {
+    // During direct route unit tests there may be no request scope for cookies().
+  }
+
+  return readUserIdFromCookieHeader(request);
+}
+
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -101,8 +106,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const cookieMap = parseCookies(request.headers.get("cookie") ?? "");
-  const userIdFromCookie = typeof cookieMap["nw-user-id"] === "string" ? cookieMap["nw-user-id"] : undefined;
+  const userIdFromCookie = await readUserIdFromCookie(request);
   const customerId = deriveCustomerId(body.customer.email, userIdFromCookie);
 
   const reservedListing = await reserveListingQuantityById(listing.id, quantity);

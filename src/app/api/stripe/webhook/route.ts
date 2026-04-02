@@ -33,7 +33,13 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
     if (orderId) {
-      await updateOrderPaymentState(orderId, "paid");
+      const updated = await updateOrderPaymentState(orderId, "paid");
+      if (!updated) {
+        console.warn("Webhook: order not found for checkout.session.completed", {
+          orderId,
+          eventId: event.id,
+        });
+      }
     }
   }
 
