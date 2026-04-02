@@ -2,16 +2,27 @@ import { describe, expect, it } from "vitest";
 import { hasAdminAccess } from "@/lib/admin";
 
 describe("auth permission checks", () => {
-  it("allows admin role with authentication", () => {
-    expect(hasAdminAccess(true, "admin")).toBe(true);
-  });
-
-  it("rejects non-admin roles", () => {
-    expect(hasAdminAccess(true, "restaurant_staff")).toBe(false);
-  });
-
-  it("rejects anonymous access", () => {
-    expect(hasAdminAccess(false, "admin")).toBe(false);
+  it.each([
+    {
+      title: "allows admin role with authentication",
+      authenticated: true,
+      role: "admin",
+      expected: true,
+    },
+    {
+      title: "rejects non-admin roles",
+      authenticated: true,
+      role: "restaurant_staff",
+      expected: false,
+    },
+    {
+      title: "rejects anonymous access",
+      authenticated: false,
+      role: "admin",
+      expected: false,
+    },
+  ])("$title", ({ authenticated, role, expected }) => {
+    expect(hasAdminAccess(authenticated, role)).toBe(expected);
   });
 });
 

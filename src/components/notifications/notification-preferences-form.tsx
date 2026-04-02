@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,21 +28,31 @@ export function NotificationPreferencesForm() {
   const [sms, setSms] = useState(defaultNotificationPreferences.sms);
   const [events, setEvents] = useState(defaultNotificationPreferences.events);
   const [lastSent, setLastSent] = useState<string | null>(null);
-
-  const enabledCount = useMemo(() => events.length, [events]);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   function toggleEvent(event: NotificationEvent) {
     setEvents((prev) => (prev.includes(event) ? prev.filter((value) => value !== event) : [...prev, event]));
   }
 
   async function sendTest(event: NotificationEvent) {
-    await dispatchEventNotification({
-      event,
-      toEmail: "test@nowaste.app",
-      toPhone: "+15555551212",
-      preference: { userId: "me", email, sms, events },
-    });
-    setLastSent(eventLabels[event]);
+    setSendError(null);
+    setIsSending(true);
+    try {
+      await dispatchEventNotification({
+        event,
+        toEmail: "test@nowaste.app",
+        toPhone: "+15555551212",
+        preference: { email, sms, events },
+      });
+      setLastSent(eventLabels[event]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to send test notification";
+      setSendError(message);
+    } finally {
+      setIsSending(false);
+    }
   }
 
   return (
@@ -58,7 +68,7 @@ export function NotificationPreferencesForm() {
             <input type="checkbox" checked={sms} onChange={(event) => setSms(event.target.checked)} />
             SMS placeholder enabled
           </label>
-          <Badge variant="neutral">{enabledCount} triggers active</Badge>
+          <Badge variant="neutral">{events.length} triggers active</Badge>
         </div>
       </Card>
 
@@ -80,12 +90,14 @@ export function NotificationPreferencesForm() {
                 size="sm"
                 variant="secondary"
                 onClick={() => sendTest(event)}
+                disabled={isSending}
               >
-                Send test
+                {isSending ? "Sending..." : "Send test"}
               </Button>
             </div>
           ))}
         </div>
+        {sendError ? <p className="text-xs text-red-600">{sendError}</p> : null}
         {lastSent ? <p className="text-xs text-neutral-500">Last test sent: {lastSent}</p> : null}
       </Card>
     </div>

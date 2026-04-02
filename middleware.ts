@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 
 const protectedPrefixes = [
   "/dashboard",
@@ -13,12 +14,11 @@ const protectedPrefixes = [
 const authPages = ["/auth/login", "/auth/sign-up", "/auth/reset-password"];
 
 const AUTH_COOKIE_NAME = "nw-authenticated";
-const ROLE_COOKIE_NAME = "nw-role";
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAuthenticated = request.cookies.get(AUTH_COOKIE_NAME)?.value === "1";
-  const role = request.cookies.get(ROLE_COOKIE_NAME)?.value;
+  const role = request.cookies.get(ADMIN_ROLE_COOKIE)?.value;
 
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
     pathname.startsWith(prefix),

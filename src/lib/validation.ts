@@ -98,18 +98,23 @@ export const donationPartnerProfileSchema = z.object({
 });
 
 export const notificationPreferenceSchema = z.object({
+  userId: z.string().min(1).optional(),
   email: z.boolean(),
   sms: z.boolean(),
-  reservationConfirmed: z.boolean(),
-  pickupReminder: z.boolean(),
-  reservationCanceled: z.boolean(),
-  listingSoldOut: z.boolean(),
-  newReservation: z.boolean(),
-  pickupCompleted: z.boolean(),
-  donationFallbackTriggered: z.boolean(),
-  donationAvailable: z.boolean(),
-  donationClaimed: z.boolean(),
-  donationPickupReminder: z.boolean(),
+  events: z.array(
+    z.enum([
+      "reservation_confirmed",
+      "pickup_reminder",
+      "reservation_canceled",
+      "listing_sold_out",
+      "new_reservation",
+      "pickup_completed",
+      "donation_fallback_triggered",
+      "donation_available",
+      "donation_claimed",
+      "donation_pickup_reminder",
+    ]),
+  ),
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;

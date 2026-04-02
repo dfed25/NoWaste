@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/card";
 import { donationPartners } from "@/lib/donation";
 
 export default function DonationPartnersPage() {
+  const formatHour = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
+
   return (
     <section className="space-y-4">
       <div>
@@ -18,7 +20,7 @@ export default function DonationPartnersPage() {
               Radius: {partner.serviceRadiusMiles} miles
             </p>
             <p className="text-xs text-neutral-600">
-              Hours: {partner.hours.startHour}:00 - {partner.hours.endHour}:00
+              Hours: {formatHour(partner.hours.startHour)} - {formatHour(partner.hours.endHour)}
             </p>
             <p className="text-xs text-neutral-600">
               Alerts: email {partner.acceptsNotifications.email ? "on" : "off"}, sms{" "}

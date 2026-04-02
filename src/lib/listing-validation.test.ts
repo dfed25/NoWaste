@@ -31,6 +31,39 @@ describe("listing creation validation", () => {
       listingType: "consumer",
     });
     expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) =>
+            issue.path.join(".") === "pickupWindowEnd" &&
+            issue.message === "Pickup window end must be after start",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects reservation cutoff after pickup start", () => {
+    const result = listingSchema.safeParse({
+      title: "Late cutoff",
+      description: "Cutoff must be before pickup starts.",
+      quantityTotal: 2,
+      discountedPriceCents: 500,
+      pickupWindowStart: "2026-04-02T19:00",
+      pickupWindowEnd: "2026-04-02T20:00",
+      reservationCutoffAt: "2026-04-02T19:30",
+      donationFallbackEnabled: false,
+      listingType: "consumer",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) =>
+            issue.path.join(".") === "reservationCutoffAt" &&
+            issue.message === "Reservation cutoff must be before pickup starts",
+        ),
+      ).toBe(true);
+    }
   });
 });
 

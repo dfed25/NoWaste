@@ -24,11 +24,19 @@ export function verifyPickupCode(order: PickupOrder, code: string) {
   return order.reservationCode.toLowerCase() === code.trim().toLowerCase();
 }
 
+function assertCanCompletePickup(order: PickupOrder) {
+  if (order.fulfillmentStatus !== "reserved") {
+    throw new Error(`Invalid fulfillment transition from "${order.fulfillmentStatus}"`);
+  }
+}
+
 export function markPickedUp(order: PickupOrder): PickupOrder {
+  assertCanCompletePickup(order);
   return { ...order, fulfillmentStatus: "picked_up" };
 }
 
 export function markMissedPickup(order: PickupOrder): PickupOrder {
+  assertCanCompletePickup(order);
   return { ...order, fulfillmentStatus: "missed_pickup" };
 }
 

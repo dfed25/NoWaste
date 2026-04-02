@@ -18,6 +18,7 @@ import {
 
 export function DonationOpsConsole() {
   const [queue, setQueue] = useState<DonationReadyItem[]>([]);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const candidates = useMemo(() => autoFlagUnsoldListingsNearingClose(listings), []);
 
   function handleConvert() {
@@ -25,13 +26,17 @@ export function DonationOpsConsole() {
   }
 
   function handleClaim(itemId: string, partnerId: string) {
-    setQueue((prev) =>
-      prev.map((item) => {
-        if (item.id !== itemId) return item;
-        const claimed = claimDonation(item, partnerId);
-        return claimed.ok ? claimed.item : item;
-      }),
-    );
+    setClaimError(null);
+    const currentItem = queue.find((item) => item.id === itemId);
+    if (!currentItem) return;
+
+    const claimed = claimDonation(currentItem, partnerId);
+    if (!claimed.ok) {
+      setClaimError(claimed.reason);
+      return;
+    }
+
+    setQueue((prev) => prev.map((item) => (item.id === itemId ? claimed.item : item)));
   }
 
   function handlePickup(itemId: string) {
@@ -72,7 +77,7 @@ export function DonationOpsConsole() {
                   <p className="text-sm font-medium text-neutral-900">
                     {item.title} (qty {item.quantity})
                   </p>
-                  <Badge variant="brand">{item.status.replace("_", " ")}</Badge>
+                  <Badge variant="brand">{item.status.replaceAll("_", " ")}</Badge>
                 </div>
                 <p className="text-xs text-neutral-500">
                   Matching partners: {matches.map((partner) => partner.name).join(", ") || "None"}
@@ -104,6 +109,7 @@ export function DonationOpsConsole() {
             );
           })
         )}
+        {claimError ? <p className="text-xs text-red-600">{claimError}</p> : null}
       </Card>
     </div>
   );

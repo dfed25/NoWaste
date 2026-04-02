@@ -1,12 +1,15 @@
 import { Card } from "@/components/ui/card";
+import { getPickupAuditEvents } from "@/lib/pickup-audit-store";
 
-const sampleAudit = [
-  "ord_1001 - code verified - restaurant",
-  "ord_1001 - picked up - restaurant",
-  "ord_1002 - expired - system",
-];
+export default async function PickupAuditPage() {
+  let auditEvents: Awaited<ReturnType<typeof getPickupAuditEvents>> = [];
+  let loadError: string | null = null;
+  try {
+    auditEvents = await getPickupAuditEvents();
+  } catch {
+    loadError = "Unable to load pickup audit events right now.";
+  }
 
-export default function PickupAuditPage() {
   return (
     <section className="space-y-4">
       <div>
@@ -15,12 +18,20 @@ export default function PickupAuditPage() {
           Immutable record of verification and fulfillment events.
         </p>
       </div>
-      <Card className="space-y-2">
-        {sampleAudit.map((event) => (
-          <p key={event} className="text-sm text-neutral-700">
-            {event}
-          </p>
-        ))}
+      <Card>
+        {loadError ? <p className="text-sm text-red-600">{loadError}</p> : null}
+        {!loadError && auditEvents.length === 0 ? (
+          <p className="text-sm text-neutral-600">No pickup audit events yet.</p>
+        ) : null}
+        {!loadError && auditEvents.length > 0 ? (
+          <ul className="space-y-2">
+            {auditEvents.map((event) => (
+              <li key={event.id} className="text-sm text-neutral-700">
+                {event.orderId} - {event.type.replaceAll("_", " ")} - {event.actor}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </Card>
     </section>
   );

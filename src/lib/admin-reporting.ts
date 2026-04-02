@@ -1,24 +1,16 @@
 import { listings, mockOrders, restaurants } from "@/lib/marketplace";
+import { donations, users } from "@/lib/admin-mocks";
 
 export function getAdminTables() {
-  const donations = [
-    { id: "don_l1", listingTitle: "Evening surplus bowl packs", status: "completed" },
-    { id: "don_l3", listingTitle: "Vegan meal packs", status: "claimed" },
-  ];
-
-  const users = [
-    { id: "u1", email: "owner@greenfork.example", role: "restaurant_staff" },
-    { id: "u2", email: "partner@foodrescue.example", role: "donation_partner" },
-    { id: "u3", email: "admin@nowaste.example", role: "admin" },
-  ];
-
   return { restaurants, listings, orders: mockOrders, donations, users };
 }
 
 export function getReportingMetrics() {
   const soldCount = mockOrders.filter((order) => order.fulfillmentStatus === "picked_up").length;
-  const donatedCount = 2;
-  const totalRecoveredCents = mockOrders.reduce((sum, order) => sum + order.totalCents, 0);
+  const donatedCount = donations.length;
+  const totalRecoveredCents = mockOrders
+    .filter((order) => order.paymentStatus === "paid" && order.fulfillmentStatus === "picked_up")
+    .reduce((sum, order) => sum + order.totalCents, 0);
 
   return {
     soldVsDonated: { soldCount, donatedCount },

@@ -17,5 +17,21 @@ describe("reservation flow", () => {
     const result = reserveListingQuantity(listing, 2);
     expect(result.ok).toBe(false);
   });
+
+  it("fails when quantity is less than 1", () => {
+    const listing = makeListing({ quantityRemaining: 3 });
+    const zeroQuantity = reserveListingQuantity(listing, 0);
+    const negativeQuantity = reserveListingQuantity(listing, -1);
+
+    expect(zeroQuantity.ok).toBe(false);
+    expect(negativeQuantity.ok).toBe(false);
+
+    if (!zeroQuantity.ok) {
+      expect(zeroQuantity.reason).toBe("Quantity must be at least 1.");
+    }
+    if (!negativeQuantity.ok) {
+      expect(negativeQuantity.reason).toBe("Quantity must be at least 1.");
+    }
+  });
 });
 

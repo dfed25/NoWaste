@@ -13,14 +13,13 @@ export type NotificationEvent =
   | "donation_pickup_reminder";
 
 export type NotificationPreference = {
-  userId: string;
+  userId?: string;
   email: boolean;
   sms: boolean;
   events: NotificationEvent[];
 };
 
 export const defaultNotificationPreferences: NotificationPreference = {
-  userId: "me",
   email: true,
   sms: false,
   events: [
@@ -50,8 +49,25 @@ const eventMessageMap: Record<NotificationEvent, string> = {
   donation_pickup_reminder: "Reminder: donation pickup is coming up.",
 };
 
+export type EmailNotificationResult = {
+  provider: "mock-email";
+  to: string;
+  subject: string;
+  body: string;
+  deliveredAt: string;
+};
+
+export type SmsNotificationResult = {
+  provider: "sms-placeholder";
+  to: string;
+  body: string;
+  deliveredAt: string;
+};
+
+export type NotificationResult = EmailNotificationResult | SmsNotificationResult;
+
 export async function sendEmail(to: string, subject: string, body: string) {
-  return Promise.resolve({
+  return Promise.resolve<EmailNotificationResult>({
     provider: "mock-email",
     to,
     subject,
@@ -61,7 +77,7 @@ export async function sendEmail(to: string, subject: string, body: string) {
 }
 
 export async function sendSmsPlaceholder(to: string, body: string) {
-  return Promise.resolve({
+  return Promise.resolve<SmsNotificationResult>({
     provider: "sms-placeholder",
     to,
     body,
@@ -74,12 +90,12 @@ export async function dispatchEventNotification(input: {
   toEmail?: string;
   toPhone?: string;
   preference?: NotificationPreference;
-}) {
+}): Promise<NotificationResult[]> {
   const preference = input.preference ?? defaultNotificationPreferences;
   if (!preference.events.includes(input.event)) return [];
 
   const message = eventMessageMap[input.event];
-  const results: unknown[] = [];
+  const results: NotificationResult[] = [];
 
   if (preference.email && input.toEmail) {
     results.push(await sendEmail(input.toEmail, "NoWaste notification", message));

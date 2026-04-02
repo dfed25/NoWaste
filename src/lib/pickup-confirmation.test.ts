@@ -14,5 +14,10 @@ describe("pickup confirmation flow", () => {
     const picked = markPickedUp(order);
     expect(picked.fulfillmentStatus).toBe("picked_up");
   });
+
+  it("throws for invalid terminal transitions", () => {
+    const pickedUpOrder = makeOrder({ fulfillmentStatus: "picked_up" });
+    expect(() => markPickedUp(pickedUpOrder)).toThrow("Invalid fulfillment transition");
+  });
 });
 

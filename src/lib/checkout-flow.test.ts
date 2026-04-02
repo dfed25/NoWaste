@@ -16,22 +16,47 @@ describe("checkout success/failure flow", () => {
     expect(response.status).toBe(400);
   });
 
-  it("returns confirmation URL fallback without Stripe key", async () => {
+  it("returns 400 when quantity is zero with valid listing fields", async () => {
     const request = new Request("http://localhost/api/checkout/session", {
       method: "POST",
       body: JSON.stringify({
         listingId: "l1",
-        listingTitle: "Test listing",
-        quantity: 1,
-        unitPriceCents: 500,
+        listingTitle: "Valid listing",
+        quantity: 0,
         customer: { name: "Test", email: "test@example.com", phone: "5551112222" },
       }),
     });
 
     const response = await checkoutPost(request);
-    const payload = (await response.json()) as { confirmationUrl?: string };
-    expect(response.status).toBe(200);
-    expect(payload.confirmationUrl).toContain("/orders/confirmation");
+    expect(response.status).toBe(400);
+  });
+
+  it("returns confirmation URL fallback without Stripe key", async () => {
+    const previousStripeKey = process.env.STRIPE_SECRET_KEY;
+    const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.STRIPE_SECRET_KEY;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    try {
+      const request = new Request("http://localhost/api/checkout/session", {
+        method: "POST",
+        body: JSON.stringify({
+          listingId: "l1",
+          listingTitle: "Test listing",
+          quantity: 1,
+          customer: { name: "Test", email: "test@example.com", phone: "5551112222" },
+        }),
+      });
+
+      const response = await checkoutPost(request);
+      const payload = (await response.json()) as { confirmationUrl?: string };
+      expect(response.status).toBe(200);
+      expect(payload.confirmationUrl).toContain("/orders/confirmation");
+    } finally {
+      if (previousStripeKey === undefined) delete process.env.STRIPE_SECRET_KEY;
+      else process.env.STRIPE_SECRET_KEY = previousStripeKey;
+      if (previousAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
+    }
   });
 });
 

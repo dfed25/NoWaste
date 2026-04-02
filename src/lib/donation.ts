@@ -70,7 +70,7 @@ export function findMatchingPartners(
   pickupStartIso: string,
   partners = donationPartners,
 ) {
-  const hour = new Date(pickupStartIso).getHours();
+  const hour = new Date(pickupStartIso).getUTCHours();
   return partners.filter((partner) => {
     const withinRadius = listingDistanceMiles <= partner.serviceRadiusMiles;
     const withinHours = hour >= partner.hours.startHour && hour < partner.hours.endHour;
