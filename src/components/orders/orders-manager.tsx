@@ -28,11 +28,34 @@ function formatCurrency(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function isSameLocalDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString([], {
+  const date = new Date(value);
+  const today = new Date();
+
+  const time = date.toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   });
+
+  if (isSameLocalDay(date, today)) {
+    return time;
+  }
+
+  const day = date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `${day}, ${time}`;
 }
 
 function normalizeStatusLabel(status: CustomerOrder["fulfillmentStatus"]) {
@@ -67,7 +90,9 @@ export function OrdersManager({ orders }: Props) {
     let refundEligibleCount = 0;
 
     for (const order of orders) {
-      totalSaved += order.totalCents;
+      if (order.fulfillmentStatus === "reserved" || order.fulfillmentStatus === "picked_up") {
+        totalSaved += order.totalCents;
+      }
       if (order.fulfillmentStatus === "reserved") upcomingCount += 1;
       if (qualifiesForRefund(order)) refundEligibleCount += 1;
     }

@@ -65,7 +65,7 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
           <p className="text-sm">Browse other listings and reserve another pickup.</p>
           <Link
             href="/"
-            className="inline-flex h-9 w-fit items-center justify-center rounded-xl bg-neutral-900 px-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+            className="inline-flex h-9 w-fit items-center justify-center rounded-xl bg-neutral-900 px-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 focus-visible:ring-offset-2"
           >
             Back to marketplace
           </Link>

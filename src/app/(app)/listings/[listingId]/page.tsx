@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LocalTime } from "@/components/common/local-time";
 import { getListingByIdFromStore } from "@/lib/marketplace-store";
 
 type ListingDetailPageProps = {
@@ -15,7 +16,10 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
 
   return (
     <section className="space-y-5">
-      <Card variant="elevated" className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/25">
+      <Card
+        variant="elevated"
+        className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/25"
+      >
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="brand">{listing.quantityRemaining} left</Badge>
@@ -28,7 +32,9 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
         <div className="grid gap-3 sm:grid-cols-3">
           <Card className="border-neutral-200/80">
             <p className="text-xs uppercase tracking-wide text-neutral-500">Price</p>
-            <p className="mt-1 text-base font-semibold text-neutral-900">${(listing.priceCents / 100).toFixed(2)}</p>
+            <p className="mt-1 text-base font-semibold text-neutral-900">
+              ${(listing.priceCents / 100).toFixed(2)}
+            </p>
           </Card>
           <Card className="border-neutral-200/80">
             <p className="text-xs uppercase tracking-wide text-neutral-500">Distance</p>
@@ -37,10 +43,7 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
           <Card className="border-neutral-200/80">
             <p className="text-xs uppercase tracking-wide text-neutral-500">Pickup</p>
             <p className="mt-1 text-base font-semibold text-neutral-900">
-              {new Date(listing.pickupWindowStart).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
+              <LocalTime value={listing.pickupWindowStart} options={{ hour: "numeric", minute: "2-digit" }} />
             </p>
           </Card>
         </div>
@@ -66,13 +69,13 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/checkout/${listing.id}`}
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             Reserve and checkout
           </Link>
           <Link
             href={`/restaurants/${listing.restaurantId}`}
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 focus-visible:ring-offset-2"
           >
             Restaurant details
           </Link>

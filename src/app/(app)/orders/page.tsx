@@ -1,10 +1,12 @@
 import { cookies } from "next/headers";
 import { OrdersManager } from "@/components/orders/orders-manager";
+import { getCustomerIdCookieName, parseSignedCustomerId } from "@/lib/customer-id-cookie";
 import { getOrdersForCustomer } from "@/lib/order-store";
 
 export default async function OrdersPage() {
   const cookieStore = await cookies();
-  const currentUserId = cookieStore.get("nw-user-id")?.value;
+  const rawCustomerCookie = cookieStore.get(getCustomerIdCookieName())?.value;
+  const currentUserId = parseSignedCustomerId(rawCustomerCookie);
   const orders = await getOrdersForCustomer(currentUserId);
 
   return (

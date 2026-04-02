@@ -12,6 +12,13 @@ import {
   reserveListingQuantityById,
   restoreListingQuantityById,
 } from "@/lib/marketplace-store";
+import {
+  createCustomerId,
+  encodeSignedCustomerId,
+  getCustomerIdCookieName,
+  parseSignedCustomerId,
+  parseSignedCustomerIdFromCookieHeader,
+} from "@/lib/customer-id-cookie";
 
 type CheckoutBody = {
   listingId: string;
@@ -52,34 +59,38 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
   );
 }
 
-function deriveCustomerId(email: string, fallbackId?: string) {
-  if (fallbackId && fallbackId.length > 0) return fallbackId;
-  return `guest:${email.trim().toLowerCase()}`;
-}
-
-function readUserIdFromCookieHeader(request: Request) {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : undefined;
+function deriveCustomerId(existingCustomerId?: string) {
+  if (existingCustomerId && existingCustomerId.length > 0) return existingCustomerId;
+  return createCustomerId();
 }
 
 async function readUserIdFromCookie(request: Request) {
   try {
     const cookieStore = await cookies();
-    const value = cookieStore.get("nw-user-id")?.value;
-    if (value) return value;
+    const value = cookieStore.get(getCustomerIdCookieName())?.value;
+    const parsed = parseSignedCustomerId(value);
+    if (parsed) return parsed;
   } catch {
     // During direct route unit tests there may be no request scope for cookies().
   }
 
-  return readUserIdFromCookieHeader(request);
+  return parseSignedCustomerIdFromCookieHeader(request);
 }
 
 function withCustomerCookie(response: NextResponse, customerId: string, existingCustomerId?: string) {
   if (existingCustomerId) return response;
-  response.cookies.set("nw-user-id", customerId, {
+
+  const encoded = encodeSignedCustomerId(customerId);
+  if (!encoded) {
+    console.error("Unable to set customer identity cookie because session secret is missing.");
+    return response;
+  }
+
+  response.cookies.set(getCustomerIdCookieName(), encoded, {
     path: "/",
     sameSite: "lax",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 30,
   });
   return response;
@@ -117,7 +128,7 @@ export async function POST(request: Request) {
   }
 
   const userIdFromCookie = await readUserIdFromCookie(request);
-  const customerId = deriveCustomerId(body.customer.email, userIdFromCookie);
+  const customerId = deriveCustomerId(userIdFromCookie);
 
   const reservedListing = await reserveListingQuantityById(listing.id, quantity);
   if (!reservedListing) {
