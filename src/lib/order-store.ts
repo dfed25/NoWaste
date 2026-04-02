@@ -49,7 +49,7 @@ export async function listAllOrders(): Promise<OrderRecord[]> {
 
 export async function getOrdersForCustomer(customerId?: string): Promise<OrderRecord[]> {
   const orders = await listAllOrders();
-  if (!customerId) return orders;
+  if (!customerId) return [];
   return orders.filter((order) => order.customerId === customerId);
 }
 

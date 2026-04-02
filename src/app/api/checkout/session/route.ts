@@ -56,6 +56,7 @@ function deriveCustomerId(email: string, fallbackId?: string) {
   if (fallbackId && fallbackId.length > 0) return fallbackId;
   return `guest:${email.trim().toLowerCase()}`;
 }
+
 function readUserIdFromCookieHeader(request: Request) {
   const cookieHeader = request.headers.get("cookie") ?? "";
   const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
@@ -74,6 +75,15 @@ async function readUserIdFromCookie(request: Request) {
   return readUserIdFromCookieHeader(request);
 }
 
+function withCustomerCookie(response: NextResponse, customerId: string, existingCustomerId?: string) {
+  if (existingCustomerId) return response;
+  response.cookies.set("nw-user-id", customerId, {
+    path: "/",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  return response;
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -127,7 +137,8 @@ export async function POST(request: Request) {
 
   if (!stripeSecretKey) {
     await updateOrderPaymentState(order.id, "paid");
-    return NextResponse.json({ confirmationUrl });
+    const response = NextResponse.json({ confirmationUrl });
+    return withCustomerCookie(response, customerId, userIdFromCookie);
   }
 
   const stripe = new Stripe(stripeSecretKey);
@@ -196,5 +207,6 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ checkoutUrl: session.url });
+  const response = NextResponse.json({ checkoutUrl: session.url });
+  return withCustomerCookie(response, customerId, userIdFromCookie);
 }
