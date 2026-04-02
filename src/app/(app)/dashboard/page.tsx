@@ -1,25 +1,15 @@
-import { Card } from "@/components/ui/card";
-import { StatusIndicator } from "@/components/ui/status-indicator";
-import { SessionStatusCard } from "@/components/auth/session-status-card";
+import { RestaurantDashboardShell } from "@/components/dashboard/restaurant-dashboard-shell";
 
 export default function DashboardPage() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-title-lg">Dashboard</h1>
+        <h1 className="text-title-lg">Restaurant dashboard</h1>
         <p className="text-body-sm text-neutral-600">
-          Mobile-first operational overview for the marketplace.
+          Overview of tonight&apos;s listings, activity, and summary metrics.
         </p>
       </div>
-      <Card variant="elevated" className="space-y-3">
-        <h2 className="text-title-md">Quick status</h2>
-        <div className="flex flex-wrap gap-2">
-          <StatusIndicator status="active" />
-          <StatusIndicator status="reserved" />
-          <StatusIndicator status="donation_eligible" />
-        </div>
-      </Card>
-      <SessionStatusCard />
+      <RestaurantDashboardShell />
     </section>
   );
 }

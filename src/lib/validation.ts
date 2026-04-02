@@ -24,14 +24,29 @@ export const guestCheckoutSchema = z.object({
 export const listingSchema = z.object({
   title: z.string().min(3, "Title is required"),
   description: z.string().min(10, "Description is required"),
+  allergyNotes: z.string().max(500, "Keep notes under 500 characters").optional(),
   quantityTotal: z.number().int().positive(),
-  priceCents: z.number().int().nonnegative(),
-  pickupWindowStart: z.iso.datetime(),
-  pickupWindowEnd: z.iso.datetime(),
-  reservationCutoffAt: z.iso.datetime(),
+  discountedPriceCents: z.number().int().nonnegative(),
+  pickupWindowStart: z.string().min(1, "Pickup start is required"),
+  pickupWindowEnd: z.string().min(1, "Pickup end is required"),
+  reservationCutoffAt: z.string().min(1, "Reservation cutoff is required"),
   donationFallbackEnabled: z.boolean(),
+  photoFileName: z.string().optional(),
   listingType: z.enum(["consumer", "donation"]),
-});
+}).refine(
+  (value) => new Date(value.pickupWindowEnd) > new Date(value.pickupWindowStart),
+  {
+    path: ["pickupWindowEnd"],
+    message: "Pickup window end must be after start",
+  },
+).refine(
+  (value) =>
+    new Date(value.reservationCutoffAt) <= new Date(value.pickupWindowStart),
+  {
+    path: ["reservationCutoffAt"],
+    message: "Reservation cutoff must be before pickup starts",
+  },
+);
 
 export const restaurantOnboardingSchema = z.object({
   restaurantName: z.string().min(2, "Restaurant name is required"),

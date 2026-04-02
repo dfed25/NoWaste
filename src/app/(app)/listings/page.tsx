@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { EmptyState } from "@/components/states/empty-state";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +14,11 @@ export default function ListingsPage() {
       <EmptyState
         title="No listings yet"
         description="Create your first listing to start accepting reservations."
-        action={<Button size="sm">Create listing</Button>}
+        action={
+          <Link href="/listings/new">
+            <Button size="sm">Create listing</Button>
+          </Link>
+        }
       />
     </section>
   );
