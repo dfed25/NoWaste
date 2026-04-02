@@ -46,7 +46,24 @@ export async function POST(request: Request) {
     if (orderId) {
       const canceled = await systemCancelOrder(orderId, "failed");
       if (canceled) {
-        await restoreListingQuantityById(canceled.listingId, canceled.quantity);
+        try {
+          const restored = await restoreListingQuantityById(canceled.listingId, canceled.quantity);
+          if (!restored) {
+            throw new Error(
+              `Inventory restore returned null for listing ${canceled.listingId}, quantity ${canceled.quantity}`,
+            );
+          }
+        } catch (error) {
+          console.error("Webhook inventory restore failed", {
+            listingId: canceled.listingId,
+            quantity: canceled.quantity,
+            error,
+          });
+          return NextResponse.json(
+            { error: "Failed to restore inventory during webhook handling" },
+            { status: 500 },
+          );
+        }
       }
     }
   }

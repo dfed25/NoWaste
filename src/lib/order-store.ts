@@ -8,26 +8,14 @@ import {
   type CustomerOrder,
   type ListingItem,
 } from "@/lib/marketplace";
+import { createRunExclusive } from "@/lib/file-queue";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
-let writeQueue: Promise<unknown> = Promise.resolve();
 
-export type OrderRecord = CustomerOrder & {
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  stripeSessionId?: string;
-};
+const runExclusive = createRunExclusive();
 
-function runExclusive<T>(operation: () => Promise<T>) {
-  const next = writeQueue.then(operation, operation);
-  writeQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
-}
+export type OrderRecord = CustomerOrder;
 
 async function readPersistedOrders(): Promise<OrderRecord[]> {
   try {
@@ -59,6 +47,12 @@ export async function listAllOrders(): Promise<OrderRecord[]> {
   });
 }
 
+export async function getOrdersForCustomer(customerId?: string): Promise<OrderRecord[]> {
+  const orders = await listAllOrders();
+  if (!customerId) return orders;
+  return orders.filter((order) => order.customerId === customerId);
+}
+
 export async function getOrderById(orderId: string): Promise<OrderRecord | null> {
   const orders = await listAllOrders();
   return orders.find((order) => order.id === orderId) ?? null;
@@ -68,6 +62,7 @@ export async function createReservedOrder(input: {
   listing: ListingItem;
   quantity: number;
   customer: { name: string; email: string; phone: string };
+  customerId: string;
 }): Promise<OrderRecord> {
   return runExclusive(async () => {
     const persisted = await readPersistedOrders();
@@ -87,6 +82,7 @@ export async function createReservedOrder(input: {
       customerName: input.customer.name,
       customerEmail: input.customer.email,
       customerPhone: input.customer.phone,
+      customerId: input.customerId,
     };
 
     await writePersistedOrders([order, ...persisted]);
@@ -108,11 +104,6 @@ export async function attachOrderStripeSession(orderId: string, sessionId: strin
     await writePersistedOrders(next);
     return updated;
   });
-}
-
-export async function findOrderByStripeSessionId(sessionId: string) {
-  const orders = await listAllOrders();
-  return orders.find((order) => order.stripeSessionId === sessionId) ?? null;
 }
 
 export async function updateOrderPaymentState(
@@ -144,7 +135,7 @@ export async function cancelOrderIfAllowed(orderId: string): Promise<OrderRecord
     const updated: OrderRecord = {
       ...current,
       fulfillmentStatus: "canceled",
-      paymentStatus: "refunded",
+      paymentStatus: current.paymentStatus === "paid" ? "refunded" : "failed",
     };
     const next = [...persisted];
     next[index] = updated;
@@ -152,7 +143,6 @@ export async function cancelOrderIfAllowed(orderId: string): Promise<OrderRecord
     return updated;
   });
 }
-
 
 export async function systemCancelOrder(
   orderId: string,
@@ -164,7 +154,7 @@ export async function systemCancelOrder(
     if (index < 0) return null;
 
     const current = persisted[index];
-    if (current.fulfillmentStatus !== "reserved") return current;
+    if (current.fulfillmentStatus !== "reserved") return null;
 
     const updated: OrderRecord = {
       ...current,

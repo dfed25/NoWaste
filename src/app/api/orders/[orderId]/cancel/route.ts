@@ -30,7 +30,18 @@ export async function POST(_request: Request, context: Params) {
     );
   }
 
-  await restoreListingQuantityById(canceled.listingId, canceled.quantity);
+  const restored = await restoreListingQuantityById(canceled.listingId, canceled.quantity);
+  if (!restored) {
+    console.error("Failed to restore inventory after cancellation", {
+      orderId: canceled.id,
+      listingId: canceled.listingId,
+      quantity: canceled.quantity,
+    });
+    return NextResponse.json(
+      { error: "Order canceled but inventory restore failed" },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ ok: true, order: canceled }, { status: 200 });
 }

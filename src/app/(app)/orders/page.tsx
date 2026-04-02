@@ -1,13 +1,16 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { canCancelOrder, qualifiesForRefund } from "@/lib/marketplace";
-import { listAllOrders } from "@/lib/order-store";
+import { getOrdersForCustomer } from "@/lib/order-store";
 import { CancelReservationButton } from "@/components/orders/cancel-reservation-button";
 
 export default async function OrdersPage() {
-  const orders = await listAllOrders();
+  const cookieStore = await cookies();
+  const currentUserId = cookieStore.get("nw-user-id")?.value;
+  const orders = await getOrdersForCustomer(currentUserId);
 
   return (
     <section className="space-y-4">
@@ -17,6 +20,13 @@ export default async function OrdersPage() {
           Reservation history, cancellation rules, and refund status.
         </p>
       </div>
+
+      {orders.length === 0 ? (
+        <Card className="space-y-2">
+          <p className="text-sm font-medium text-neutral-800">No orders yet.</p>
+          <p className="text-sm text-neutral-600">Place a reservation to see it here.</p>
+        </Card>
+      ) : null}
 
       <div className="space-y-3">
         {orders.map((order) => {

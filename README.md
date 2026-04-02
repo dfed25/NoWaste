@@ -48,9 +48,13 @@ Required keys:
   - Use anon/public key for `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
 - `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
   - Create/login to [Stripe](https://dashboard.stripe.com/).
   - Use Developers -> API keys -> Secret key (test key for local).
+
+- `STRIPE_WEBHOOK_SECRET`
+  - In Stripe Dashboard: Developers -> Webhooks, create an endpoint for `/api/stripe/webhook`.
+  - Copy the endpoint signing secret into `STRIPE_WEBHOOK_SECRET`.
+  - Local development: run `stripe listen --forward-to localhost:3000/api/stripe/webhook` and use the displayed signing secret.
 
 - `AUTH_SESSION_SECRET`
   - Random 32+ byte secret used for server-side session signature checks.

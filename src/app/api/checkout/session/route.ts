@@ -3,9 +3,14 @@ import Stripe from "stripe";
 import {
   attachOrderStripeSession,
   createReservedOrder,
+  systemCancelOrder,
   updateOrderPaymentState,
 } from "@/lib/order-store";
-import { getListingByIdFromStore, reserveListingQuantityById } from "@/lib/marketplace-store";
+import {
+  getListingByIdFromStore,
+  reserveListingQuantityById,
+  restoreListingQuantityById,
+} from "@/lib/marketplace-store";
 
 type CheckoutBody = {
   listingId: string;
@@ -46,6 +51,25 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
   );
 }
 
+function deriveCustomerId(email: string, fallbackId?: string) {
+  if (fallbackId && fallbackId.length > 0) return fallbackId;
+  return `guest:${email.trim().toLowerCase()}`;
+}
+
+function parseCookies(cookieHeader: string) {
+  return Object.fromEntries(
+    cookieHeader
+      .split(";")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((pair) => {
+        const index = pair.indexOf("=");
+        if (index < 0) return [pair, ""];
+        return [pair.slice(0, index), decodeURIComponent(pair.slice(index + 1))];
+      }),
+  );
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -70,14 +94,16 @@ export async function POST(request: Request) {
 
   const appUrl = resolveAppOrigin(request);
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!stripeSecretKey && process.env.NODE_ENV === "test") {
-    return NextResponse.json({
-      confirmationUrl: `${appUrl}/orders/confirmation?orderId=test_${encodeURIComponent(
-        listing.id,
-      )}`,
-    });
+  if (!stripeSecretKey && process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Checkout is temporarily unavailable." },
+      { status: 503 },
+    );
   }
+
+  const cookieMap = parseCookies(request.headers.get("cookie") ?? "");
+  const userIdFromCookie = typeof cookieMap["nw-user-id"] === "string" ? cookieMap["nw-user-id"] : undefined;
+  const customerId = deriveCustomerId(body.customer.email, userIdFromCookie);
 
   const reservedListing = await reserveListingQuantityById(listing.id, quantity);
   if (!reservedListing) {
@@ -88,6 +114,7 @@ export async function POST(request: Request) {
     listing: reservedListing,
     quantity,
     customer: body.customer,
+    customerId,
   });
 
   const confirmationUrl = `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
@@ -95,13 +122,6 @@ export async function POST(request: Request) {
   )}`;
 
   if (!stripeSecretKey) {
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Checkout is temporarily unavailable." },
-        { status: 503 },
-      );
-    }
-
     await updateOrderPaymentState(order.id, "paid");
     return NextResponse.json({ confirmationUrl });
   }
@@ -144,6 +164,28 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Unknown Stripe API failure";
     console.error("Stripe checkout session create failed:", message);
+
+    try {
+      const canceled = await systemCancelOrder(order.id, "failed");
+      if (!canceled) {
+        console.error("Rollback skipped: order already transitioned", { orderId: order.id });
+      }
+    } catch (rollbackError) {
+      console.error("Rollback failed while canceling order:", rollbackError);
+    }
+
+    try {
+      const restored = await restoreListingQuantityById(reservedListing.id, quantity);
+      if (!restored) {
+        console.error("Rollback failed while restoring listing inventory", {
+          listingId: reservedListing.id,
+          quantity,
+        });
+      }
+    } catch (rollbackError) {
+      console.error("Rollback threw while restoring listing inventory:", rollbackError);
+    }
+
     return NextResponse.json(
       { error: "Unable to initialize payment session" },
       { status: 502 },

@@ -11,13 +11,15 @@ export async function getPickupAuditEvents(): Promise<ReadonlyArray<PickupAuditE
       ((order as unknown as { statusUpdatedAt?: string }).statusUpdatedAt ??
         new Date().toISOString());
 
+    const actor =
+      order.fulfillmentStatus === "expired" || order.fulfillmentStatus === "canceled"
+        ? ("system" as const)
+        : ("restaurant" as const);
+
     persistedEvents.push({
       id: `evt_${order.id}`,
       orderId: order.id,
-      actor:
-        order.fulfillmentStatus === "expired"
-          ? ("system" as const)
-          : ("restaurant" as const),
+      actor,
       type: order.fulfillmentStatus,
       at: transitionAt,
     });
