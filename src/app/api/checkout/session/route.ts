@@ -72,37 +72,54 @@ export async function POST(request: Request) {
 
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Checkout is temporarily unavailable." },
+        { status: 503 },
+      );
+    }
     // Dev fallback so frontend flow remains testable without keys.
     return NextResponse.json({ confirmationUrl });
   }
 
   const stripe = new Stripe(stripeSecretKey);
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: body.customer.email,
-    metadata: {
-      listingId: listing.id,
-      customerName: body.customer.name,
-      customerPhone: body.customer.phone,
-      quantity: String(quantity),
-    },
-    line_items: [
-      {
-        quantity,
-        price_data: {
-          currency: "usd",
-          unit_amount: listing.priceCents,
-          product_data: {
-            name: listing.title,
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: body.customer.email,
+      metadata: {
+        listingId: listing.id,
+        customerName: body.customer.name,
+        customerPhone: body.customer.phone,
+        quantity: String(quantity),
+      },
+      line_items: [
+        {
+          quantity,
+          price_data: {
+            currency: "usd",
+            unit_amount: listing.priceCents,
+            product_data: {
+              name: listing.title,
+            },
           },
         },
-      },
-    ],
-    success_url: `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
-      listing.id,
-    )}&quantity=${quantity}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
-  });
+      ],
+      success_url: `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
+        listing.id,
+      )}&quantity=${quantity}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown Stripe API failure";
+    console.error("Stripe checkout session create failed:", message);
+    return NextResponse.json(
+      { error: "Unable to initialize payment session" },
+      { status: 502 },
+    );
+  }
 
   return NextResponse.json({ checkoutUrl: session.url });
 }
