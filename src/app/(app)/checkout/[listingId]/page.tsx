@@ -5,15 +5,29 @@ import { getListingById } from "@/lib/marketplace";
 
 type CheckoutPageProps = {
   params: Promise<{ listingId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function CheckoutPage({ params }: CheckoutPageProps) {
+export default async function CheckoutPage({ params, searchParams }: CheckoutPageProps) {
   const { listingId } = await params;
+  const query = await searchParams;
+  const cancelled =
+    query.cancelled === "1" ||
+    query.cancelled === "true" ||
+    (Array.isArray(query.cancelled) &&
+      (query.cancelled.includes("1") || query.cancelled.includes("true")));
   const listing = getListingById(listingId);
   if (!listing) notFound();
 
   return (
     <section className="space-y-4">
+      {cancelled ? (
+        <Card className="border-amber-200 bg-amber-50 text-amber-900">
+          <p className="text-sm">
+            Checkout was canceled. No charge was made. You can review your details and try again.
+          </p>
+        </Card>
+      ) : null}
       <div>
         <h1 className="text-title-lg">Checkout</h1>
         <p className="text-body-sm text-neutral-600">

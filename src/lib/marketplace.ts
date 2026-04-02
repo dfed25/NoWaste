@@ -162,7 +162,7 @@ export function filterListings(
     }
 
     if (filters.pickupPart && filters.pickupPart !== "any") {
-      const hour = new Date(listing.pickupWindowStart).getHours();
+      const hour = new Date(listing.pickupWindowStart).getUTCHours();
       if (filters.pickupPart === "afternoon" && (hour < 12 || hour >= 17)) return false;
       if (filters.pickupPart === "evening" && (hour < 17 || hour >= 21)) return false;
       if (filters.pickupPart === "night" && hour < 21) return false;
@@ -185,9 +185,9 @@ export function getOrdersForCustomer() {
 }
 
 export function generatePickupCode(orderId: string) {
-  const base = orderId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const base = orderId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().padEnd(10, "X");
   const chunked = `${base.slice(0, 2)}-${base.slice(2, 6)}-${base.slice(6, 10)}`;
-  return `NW-${chunked}`.slice(0, 14);
+  return `NW-${chunked}`;
 }
 
 export function canCancelOrder(order: CustomerOrder, now = new Date()) {

@@ -52,7 +52,14 @@ export default function Home() {
         <EmptyState
           title="No orders yet"
           description="Orders will appear here once checkout is wired up."
-          action={<Button size="sm">Create first listing</Button>}
+          action={
+            <Link
+              href="/listings/new"
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            >
+              Create first listing
+            </Link>
+          }
         />
         <ErrorState message="Failed to load listings. Retry once API routes are connected." />
       </div>

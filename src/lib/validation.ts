@@ -45,7 +45,7 @@ export const listingSchema = z.object({
   },
 ).refine(
   (value) =>
-    new Date(value.reservationCutoffAt) <= new Date(value.pickupWindowStart),
+    new Date(value.reservationCutoffAt) < new Date(value.pickupWindowStart),
   {
     path: ["reservationCutoffAt"],
     message: "Reservation cutoff must be before pickup starts",

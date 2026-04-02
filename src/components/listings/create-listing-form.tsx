@@ -45,8 +45,17 @@ export function CreateListingForm() {
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
     try {
-      // Placeholder for API persistence (APP-142 publish action)
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      const response = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not publish listing");
+      }
 
       pushToast({
         tone: "success",
@@ -59,6 +68,11 @@ export function CreateListingForm() {
       const message =
         error instanceof Error ? error.message : "Could not publish listing";
       setSubmitError(message);
+      pushToast({
+        tone: "error",
+        title: "Publish failed",
+        description: message,
+      });
     }
   });
 

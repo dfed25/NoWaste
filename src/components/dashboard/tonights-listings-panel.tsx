@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { StatusIndicator } from "@/components/ui/status-indicator";
-import { Button } from "@/components/ui/button";
 
 const tonightListings = [
   { id: "L-1001", title: "Bakery surprise bags", qty: 8, status: "active" as const },
@@ -14,8 +13,11 @@ export function TonightsListingsPanel() {
     <Card variant="elevated" className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-title-md">Tonight&apos;s listings</h2>
-        <Link href="/listings/new">
-          <Button size="sm">Create listing</Button>
+        <Link
+          href="/listings/new"
+          className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+        >
+          Create listing
         </Link>
       </div>
       <div className="space-y-2">

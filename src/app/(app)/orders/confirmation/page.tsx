@@ -11,7 +11,11 @@ export default async function OrderConfirmationPage({
 }: ConfirmationPageProps) {
   const params = await searchParams;
   const listingId = typeof params.listingId === "string" ? params.listingId : "unknown";
-  const quantity = Number(typeof params.quantity === "string" ? params.quantity : "1");
+  const parsedQuantity = Number.parseInt(
+    typeof params.quantity === "string" ? params.quantity : "1",
+    10,
+  );
+  const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
   const sessionId = typeof params.session_id === "string" ? params.session_id : "";
 
   const reservationCode = generatePickupCode(

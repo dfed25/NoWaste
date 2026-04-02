@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/states/empty-state";
 import { filterListings, listings } from "@/lib/marketplace";
@@ -99,17 +98,21 @@ export function MarketplaceFeed() {
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-neutral-800">Price filter (max cents)</span>
+            <span className="font-medium text-neutral-800">Price filter (max dollars)</span>
             <input
               type="number"
               className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
-              placeholder="Any"
-              value={maxPriceCents}
-              onChange={(event) =>
-                setMaxPriceCents(
-                  event.target.value === "" ? "" : Number(event.target.value),
-                )
-              }
+              placeholder="Any (USD)"
+              value={maxPriceCents === "" ? "" : (maxPriceCents / 100).toString()}
+              onChange={(event) => {
+                const dollars = event.target.value;
+                if (dollars === "") {
+                  setMaxPriceCents("");
+                  return;
+                }
+                const numeric = Number(dollars);
+                setMaxPriceCents(Number.isFinite(numeric) ? Math.round(numeric * 100) : "");
+              }}
             />
           </label>
         </div>
@@ -146,13 +149,17 @@ export function MarketplaceFeed() {
                 })}
               </p>
               <div className="flex gap-2">
-                <Link href={`/listings/${listing.id}`}>
-                  <Button size="sm">View listing</Button>
+                <Link
+                  href={`/listings/${listing.id}`}
+                  className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                >
+                  View listing
                 </Link>
-                <Link href={`/restaurants/${listing.restaurantId}`}>
-                  <Button size="sm" variant="secondary">
-                    Restaurant details
-                  </Button>
+                <Link
+                  href={`/restaurants/${listing.restaurantId}`}
+                  className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+                >
+                  Restaurant details
                 </Link>
               </div>
             </Card>

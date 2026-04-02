@@ -58,7 +58,7 @@ export function ReservationCheckoutForm({
         body: JSON.stringify({
           listingId,
           listingTitle,
-          quantity,
+          quantity: values.quantity,
           unitPriceCents,
           customer: {
             name: values.name,
@@ -118,6 +118,7 @@ export function ReservationCheckoutForm({
           label="Quantity"
           type="number"
           min={1}
+          error={errors.quantity?.message}
           {...register("quantity", { valueAsNumber: true })}
         />
         <p className="text-sm text-neutral-700">
