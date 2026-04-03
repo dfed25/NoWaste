@@ -138,12 +138,13 @@ export function OrdersManager({ orders }: Props) {
           placeholder="Search by listing title or order ID"
           aria-label="Search orders"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter orders by status">
           {FILTERS.map((item) => (
             <Button
               key={item.id}
               size="sm"
               variant={filter === item.id ? "primary" : "secondary"}
+              aria-pressed={filter === item.id}
               onClick={() => setFilter(item.id)}
             >
               {item.label}
@@ -179,8 +180,11 @@ export function OrdersManager({ orders }: Props) {
                 Pickup: {formatTime(order.pickupWindowStart)} - {formatTime(order.pickupWindowEnd)}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link href={`/orders/confirmation?orderId=${encodeURIComponent(order.id)}`}>
-                  <Button size="sm">View pickup code</Button>
+                <Link
+                  href={`/orders/confirmation?orderId=${encodeURIComponent(order.id)}`}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                >
+                  View pickup code
                 </Link>
                 <CancelReservationButton orderId={order.id} disabled={!canCancel} />
                 <Badge variant={refundEligible ? "success" : "neutral"}>

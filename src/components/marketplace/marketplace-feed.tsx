@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ export function MarketplaceFeed() {
   const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [savedOnly, setSavedOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const didRestoreSaved = useRef(false);
   const [sourceListings, setSourceListings] = useState<ListingItem[]>(fallbackListings);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -65,17 +66,24 @@ export function MarketplaceFeed() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(SAVED_LISTINGS_KEY);
-      if (!raw) return;
+      if (!raw) {
+        didRestoreSaved.current = true;
+        return;
+      }
+
       const parsed = JSON.parse(raw) as unknown;
       if (Array.isArray(parsed)) {
         setSavedIds(parsed.filter((value): value is string => typeof value === "string"));
       }
+      didRestoreSaved.current = true;
     } catch {
       // Ignore local parsing issues and start clean.
+      didRestoreSaved.current = true;
     }
   }, []);
 
   useEffect(() => {
+    if (!didRestoreSaved.current) return;
     window.localStorage.setItem(SAVED_LISTINGS_KEY, JSON.stringify(savedIds));
   }, [savedIds]);
 
@@ -134,7 +142,7 @@ export function MarketplaceFeed() {
     if (pickupPart !== "any") count += 1;
     if (dietary !== "any") count += 1;
     if (maxPriceCents !== "") count += 1;
-    if (onlyAvailable) count += 1;
+    if (!onlyAvailable) count += 1;
     if (savedOnly) count += 1;
     if (sortBy !== "recommended") count += 1;
     return count;
@@ -399,6 +407,7 @@ export function MarketplaceFeed() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    aria-label={isSaved ? `Unsave listing ${listing.title}` : `Save listing ${listing.title}`}
                     onClick={() => toggleSaved(listing.id)}
                     className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
                   >

@@ -43,15 +43,16 @@ function escapeRegExp(value: string) {
 export function parseCustomerIdCookie(rawValue: string | undefined): ParsedCustomerId {
   if (!rawValue) return { needsResign: false };
 
-  const separatorIndex = rawValue.lastIndexOf(".");
-  if (separatorIndex === -1) {
-    if (!isLegacyCustomerId(rawValue)) return { needsResign: false };
+  // Legacy unsigned IDs should be accepted before dot-based signed parsing.
+  if (isLegacyCustomerId(rawValue)) {
     return {
       customerId: rawValue,
       needsResign: Boolean(getCookieSecret()),
     };
   }
 
+  const separatorIndex = rawValue.lastIndexOf(".");
+  if (separatorIndex === -1) return { needsResign: false };
   if (separatorIndex <= 0 || separatorIndex >= rawValue.length - 1) {
     return { needsResign: false };
   }

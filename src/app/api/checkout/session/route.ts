@@ -82,16 +82,10 @@ async function readUserIdFromCookie(request: Request): Promise<CustomerCookieRes
   return parseCustomerIdCookieFromCookieHeader(request);
 }
 
-function withCustomerCookie(response: NextResponse, customerId: string, shouldSetCookie: boolean) {
-  if (!shouldSetCookie) return response;
+function withCustomerCookie(response: NextResponse, encodedCookieValue?: string) {
+  if (!encodedCookieValue) return response;
 
-  const encoded = encodeSignedCustomerId(customerId);
-  if (!encoded) {
-    console.error("Unable to set customer identity cookie because session secret is missing.");
-    return response;
-  }
-
-  response.cookies.set(getCustomerIdCookieName(), encoded, {
+  response.cookies.set(getCustomerIdCookieName(), encodedCookieValue, {
     path: "/",
     sameSite: "lax",
     httpOnly: true,
@@ -135,6 +129,16 @@ export async function POST(request: Request) {
   const customerCookie = await readUserIdFromCookie(request);
   const customerId = deriveCustomerId(customerCookie.customerId);
   const shouldSetCustomerCookie = !customerCookie.customerId || customerCookie.needsResign;
+  const encodedCustomerCookie = shouldSetCustomerCookie
+    ? encodeSignedCustomerId(customerId)
+    : undefined;
+
+  if (shouldSetCustomerCookie && !encodedCustomerCookie) {
+    return NextResponse.json(
+      { error: "Checkout is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
 
   const reservedListing = await reserveListingQuantityById(listing.id, quantity);
   if (!reservedListing) {
@@ -155,7 +159,7 @@ export async function POST(request: Request) {
   if (!stripeSecretKey) {
     await updateOrderPaymentState(order.id, "paid");
     const response = NextResponse.json({ confirmationUrl });
-    return withCustomerCookie(response, customerId, shouldSetCustomerCookie);
+    return withCustomerCookie(response, encodedCustomerCookie);
   }
 
   const stripe = new Stripe(stripeSecretKey);
@@ -225,5 +229,5 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ checkoutUrl: session.url });
-  return withCustomerCookie(response, customerId, shouldSetCustomerCookie);
+  return withCustomerCookie(response, encodedCustomerCookie);
 }
