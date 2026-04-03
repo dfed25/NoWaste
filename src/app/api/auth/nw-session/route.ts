@@ -33,6 +33,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Session issue API is disabled in this environment" }, { status: 403 });
   }
 
+  if (process.env.NODE_ENV === "production") {
+    const issueSecret = process.env.NW_SESSION_ISSUE_SECRET;
+    const provided = request.headers.get("x-nw-session-issue-secret");
+    if (!issueSecret || provided !== issueSecret) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const secret = process.env.AUTH_SESSION_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "AUTH_SESSION_SECRET is not configured" }, { status: 503 });

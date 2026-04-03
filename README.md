@@ -29,7 +29,7 @@ NoWaste is a Next.js app for reducing food waste by connecting surplus restauran
 
 Signed session cookies (`nw-authenticated`, `nw-role`, optional `nw-restaurant-id`, and `nw-session-sig`) use `AUTH_SESSION_SECRET`. Staff cannot change `nw-restaurant-id` without invalidating the signature.
 
-For local demos, `POST /api/auth/nw-session` with JSON such as `{ "role": "restaurant_staff", "restaurantId": "r1" }` sets matching cookies. In production that route is disabled unless `ALLOW_NW_SESSION_ISSUE=1`; prefer issuing scope from your auth provider when user profiles store `restaurantId`.
+For local demos, `POST /api/auth/nw-session` with JSON such as `{ "role": "restaurant_staff", "restaurantId": "r1" }` sets matching cookies. In production the route requires `ALLOW_NW_SESSION_ISSUE=1` **and** header `x-nw-session-issue-secret` matching `NW_SESSION_ISSUE_SECRET`. Prefer issuing scope from your auth provider when user profiles store `restaurantId`.
 
 ## Local development
 

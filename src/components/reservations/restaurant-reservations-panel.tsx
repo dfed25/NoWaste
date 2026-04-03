@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
+import { OrderApiErrorCode } from "@/lib/order-api-codes";
 
 type RestaurantChoice = { id: string; name: string };
 
@@ -71,11 +72,15 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
       const payload = (await response.json().catch(() => ({}))) as {
         orders?: CustomerOrder[];
         error?: string;
+        code?: string;
       };
 
       if (seq !== refreshSeqRef.current) return;
 
-      if (response.status === 400 && /restaurantId/i.test(payload.error ?? "")) {
+      if (
+        response.status === 400 &&
+        payload.code === OrderApiErrorCode.ADMIN_RESTAURANT_ID_REQUIRED
+      ) {
         if (seq !== refreshSeqRef.current) return;
         if (!restaurantChoices.length) {
           throw new Error("No restaurants are configured to scope admin reservations.");
@@ -126,6 +131,9 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
         error?: string;
       };
       if (!response.ok) {
+        if (response.status === 404 || response.status === 409) {
+          await refresh();
+        }
         throw new Error(payload.error ?? "Update failed");
       }
       if (payload.order) {
@@ -203,6 +211,7 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
               className="h-10 rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               value={adminRestaurantId}
               onChange={(e) => {
+                refreshSeqRef.current += 1;
                 refreshAbortRef.current?.abort();
                 setOrders([]);
                 setIsLoading(true);

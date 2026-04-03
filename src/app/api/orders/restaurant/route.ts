@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listOrdersForRestaurant } from "@/lib/order-store";
 import { resolveListingAuthContext } from "@/lib/listing-auth-context";
+import { OrderApiErrorCode } from "@/lib/order-api-codes";
 
 function canViewRestaurantOrders(role: string | undefined) {
   return role === "restaurant_staff" || role === "admin";
@@ -22,7 +23,10 @@ export async function GET(request: Request) {
   if (context.role === "admin") {
     if (!queryRestaurantId) {
       return NextResponse.json(
-        { error: "Admin requests must include a restaurantId query parameter" },
+        {
+          error: "Admin requests must include a restaurantId query parameter",
+          code: OrderApiErrorCode.ADMIN_RESTAURANT_ID_REQUIRED,
+        },
         { status: 400 },
       );
     }
