@@ -43,19 +43,25 @@ In Xcode, pick a simulator (for example iPhone 16) and press Run. After that, pr
 
 **Live reload (recommended):** the app loads your machine’s dev server via `CAP_SERVER_URL` (set in the `ios` / `android` run scripts).
 
-Terminal A (dev server bound to all interfaces so devices/simulators can reach it):
+**Easiest — one terminal (starts dev server, waits for port 3000, then opens the iOS simulator):**
+
+```bash
+npm run mobile:ios:dev
+```
+
+**Or two terminals:** Terminal A — dev server bound to all interfaces so the simulator can reach it:
 
 ```bash
 npm run dev:mobile
 ```
 
-Terminal B (build, sync, run simulator with live server URL):
+Terminal B — run the native shell against the live server:
 
 ```bash
 npm run ios
 ```
 
-Equivalent: `npm run mobile:ios:run` (same as `ios`).
+Equivalent: `npm run mobile:ios:run` (same as `ios`). After changing `capacitor.config.ts`, run `npx cap sync ios` (or `npm run mobile:sync`) once.
 
 ---
 
@@ -74,19 +80,13 @@ npm run mobile:android:open
 
 Then use Android Studio to run an emulator, or:
 
-Terminal A:
+**One terminal:**
 
 ```bash
-npm run dev:mobile
+npm run mobile:android:dev
 ```
 
-Terminal B:
-
-```bash
-npm run android
-```
-
-(`android` runs `mobile:android:run` with `CAP_SERVER_URL=http://localhost:3000`.)
+**Or two terminals:** A — `npm run dev:mobile`, B — `npm run android` (`mobile:android:run` with `CAP_SERVER_URL=http://localhost:3000`).
 
 ---
 

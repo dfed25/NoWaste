@@ -56,8 +56,8 @@ NoWaste ships as a **Next.js** app with optional **Capacitor** native shells. It
 | Goal | Command / flow |
 |------|------------------|
 | **Web (any OS)** | `npm run dev` → open http://localhost:3000 |
-| **iOS Simulator (Mac + Xcode)** | Terminal A: `npm run dev:mobile` · Terminal B: `npm run ios` |
-| **Android emulator** | One-time `npm run mobile:android:add`, then same two-terminal pattern with `npm run android` |
+| **iOS Simulator (Mac + Xcode)** | One command: `npm run mobile:ios:dev` — or two terminals: `npm run dev:mobile` + `npm run ios` |
+| **Android emulator** | One-time `npm run mobile:android:add`, then `npm run mobile:android:dev` (or `dev:mobile` + `npm run android`) |
 | **Physical device** | `npm run dev:mobile` plus `CAP_SERVER_URL=http://<your-LAN-IP>:3000` when running Capacitor (see Contributing) |
 
 Short **merge-friendly workflow** tips for larger features are also in [CONTRIBUTING.md](./CONTRIBUTING.md).
@@ -146,7 +146,8 @@ App runs at `http://localhost:3000`.
 - `npm run dev` - start local dev server (Webpack mode)
 - `npm run dev:mobile` - dev server on `0.0.0.0:3000` (for simulators / LAN devices)
 - `npm run dev:turbo` - start local dev server in Turbopack mode
-- `npm run ios` / `npm run android` - Capacitor live reload against `http://localhost:3000` (requires native project; see [CONTRIBUTING.md](./CONTRIBUTING.md))
+- `npm run mobile:ios:dev` / `npm run mobile:android:dev` - start dev server and launch simulator/emulator when port 3000 is ready
+- `npm run ios` / `npm run android` - Capacitor live reload only (run `dev:mobile` separately; see [CONTRIBUTING.md](./CONTRIBUTING.md))
 - `npm run mobile:sync` - production build + `cap sync` (all added platforms)
 - `npm run build` - production build
 - `npm run start` - run production server
