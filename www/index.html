@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <title>NoWaste</title>
     <style>
       html,
@@ -34,6 +34,16 @@
       }
       code {
         font-size: 0.85em;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+        code {
+          color: #e2e8f0;
+        }
       }
     </style>
   </head>
