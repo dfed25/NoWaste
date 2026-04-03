@@ -22,6 +22,9 @@ type EditDraft = {
   allergyNotes: string;
 };
 
+const primaryLinkClasses =
+  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 bg-brand-600 text-white hover:bg-brand-700 focus-visible:ring-brand-500 h-9 px-3 text-sm";
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown time";
@@ -47,6 +50,7 @@ export function RestaurantListingsManager() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [activeEditId, setActiveEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+  const [editDrafts, setEditDrafts] = useState<Record<string, EditDraft>>({});
   const [isMutating, setIsMutating] = useState(false);
   const [hasLoadedSuccess, setHasLoadedSuccess] = useState(false);
 
@@ -102,16 +106,26 @@ export function RestaurantListingsManager() {
     });
   }, [listings, query, statusFilter]);
 
-  function beginEdit(listing: ManagedListing) {
-    setActiveEditId(listing.id);
-    setEditDraft({
+  function createEditDraft(listing: ManagedListing): EditDraft {
+    return {
       title: listing.title,
       description: listing.description,
       discountedPriceCents: listing.priceCents,
       quantityTotal: listing.quantityTotal,
       quantityRemaining: listing.quantityRemaining,
       allergyNotes: listing.allergyNotes ?? "",
-    });
+    };
+  }
+
+  function beginEdit(listing: ManagedListing) {
+    const nextDrafts = { ...editDrafts };
+    if (activeEditId && editDraft) {
+      nextDrafts[activeEditId] = editDraft;
+    }
+    const nextDraft = nextDrafts[listing.id] ?? createEditDraft(listing);
+    setEditDrafts(nextDrafts);
+    setActiveEditId(listing.id);
+    setEditDraft(nextDraft);
   }
 
   async function runMutation(
@@ -154,8 +168,25 @@ export function RestaurantListingsManager() {
 
   async function saveEdit() {
     if (!activeEditId || !editDraft) return;
+    if (
+      !Number.isFinite(editDraft.discountedPriceCents) ||
+      !Number.isFinite(editDraft.quantityTotal) ||
+      !Number.isFinite(editDraft.quantityRemaining) ||
+      editDraft.discountedPriceCents < 0 ||
+      editDraft.quantityTotal < 1 ||
+      editDraft.quantityRemaining < 0 ||
+      editDraft.quantityRemaining > editDraft.quantityTotal
+    ) {
+      setError("Please enter valid price and inventory values.");
+      return;
+    }
     const didSave = await runMutation(activeEditId, { method: "PATCH", body: editDraft });
     if (didSave) {
+      setEditDrafts((current) => {
+        const next = { ...current };
+        delete next[activeEditId];
+        return next;
+      });
       setActiveEditId(null);
       setEditDraft(null);
     }
@@ -171,8 +202,8 @@ export function RestaurantListingsManager() {
               Manage inventory in real-time with quick pause, archive, edit, and delete actions.
             </p>
           </div>
-          <Link href="/listings/new">
-            <Button size="sm">Create listing</Button>
+          <Link href="/listings/new" className={primaryLinkClasses}>
+            Create listing
           </Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -235,8 +266,8 @@ export function RestaurantListingsManager() {
           title="No listings found"
           description="Try changing filters or create a fresh listing for tonight."
           action={
-            <Link href="/listings/new">
-              <Button size="sm">Create listing</Button>
+            <Link href="/listings/new" className={primaryLinkClasses}>
+              Create listing
             </Link>
           }
         />
@@ -361,6 +392,13 @@ export function RestaurantListingsManager() {
                         size="sm"
                         variant="secondary"
                         onClick={() => {
+                          if (activeEditId) {
+                            setEditDrafts((current) => {
+                              const next = { ...current };
+                              delete next[activeEditId];
+                              return next;
+                            });
+                          }
                           setActiveEditId(null);
                           setEditDraft(null);
                         }}
