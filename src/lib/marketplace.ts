@@ -49,14 +49,7 @@ export type CustomerOrder = {
   createdAt: string;
   fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired";
   paymentStatus: "paid" | "refunded" | "pending";
-  fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired" | "canceled";
-  paymentStatus: "pending" | "paid" | "refunded" | "failed";
   reservationCode: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  stripeSessionId?: string;
-  customerId?: string;
 };
 
 export const restaurants: RestaurantItem[] = [
@@ -136,7 +129,6 @@ export const mockOrders: CustomerOrder[] = [
     fulfillmentStatus: "reserved",
     paymentStatus: "paid",
     reservationCode: "NW-3H4K-8P2M",
-    customerId: "demo-customer",
   },
   {
     id: "ord_1002",
@@ -151,7 +143,6 @@ export const mockOrders: CustomerOrder[] = [
     fulfillmentStatus: "expired",
     paymentStatus: "refunded",
     reservationCode: "NW-9L1D-2T7Q",
-    customerId: "demo-customer",
   },
 ];
 
@@ -206,8 +197,6 @@ export function getRestaurantById(id: string) {
 }
 
 export function getOrdersForCustomer(customerId = "demo-customer") {
-export function getOrdersForCustomer(customerId?: string) {
-  if (!customerId) return mockOrders;
   return mockOrders.filter((order) => order.customerId === customerId);
 }
 
@@ -225,7 +214,7 @@ export function canCancelOrder(order: CustomerOrder, now = new Date()) {
 }
 
 export function qualifiesForRefund(order: CustomerOrder) {
-  return order.fulfillmentStatus === "expired" || order.fulfillmentStatus === "missed_pickup" || order.fulfillmentStatus === "canceled";
+  return order.fulfillmentStatus === "expired" || order.fulfillmentStatus === "missed_pickup";
 }
 
 export function editListing(

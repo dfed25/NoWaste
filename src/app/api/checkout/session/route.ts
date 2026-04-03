@@ -4,25 +4,6 @@ import Stripe from "stripe";
 import { getListingById } from "@/lib/marketplace";
 import { createReservedOrder, deleteOrder } from "@/lib/order-store";
 import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
-import {
-  attachOrderStripeSession,
-  createReservedOrder,
-  systemCancelOrder,
-  updateOrderPaymentState,
-} from "@/lib/order-store";
-import {
-  getListingByIdFromStore,
-  reserveListingQuantityById,
-  restoreListingQuantityById,
-} from "@/lib/marketplace-store";
-import { createInAppNotification } from "@/lib/notification-center-store";
-import {
-  createCustomerId,
-  encodeSignedCustomerId,
-  getCustomerIdCookieName,
-  parseCustomerIdCookie,
-  parseCustomerIdCookieFromCookieHeader,
-} from "@/lib/customer-id-cookie";
 
 type CheckoutBody = {
   listingId: string;
@@ -33,11 +14,6 @@ type CheckoutBody = {
     email: string;
     phone: string;
   };
-};
-
-type CustomerCookieResult = {
-  customerId?: string;
-  needsResign: boolean;
 };
 
 function resolveAppOrigin(request: Request) {
@@ -85,37 +61,6 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
   );
 }
 
-function deriveCustomerId(existingCustomerId?: string) {
-  if (existingCustomerId && existingCustomerId.length > 0) return existingCustomerId;
-  return createCustomerId();
-}
-
-async function readUserIdFromCookie(request: Request): Promise<CustomerCookieResult> {
-  try {
-    const cookieStore = await cookies();
-    const value = cookieStore.get(getCustomerIdCookieName())?.value;
-    const parsed = parseCustomerIdCookie(value);
-    if (parsed.customerId) return parsed;
-  } catch {
-    // During direct route unit tests there may be no request scope for cookies().
-  }
-
-  return parseCustomerIdCookieFromCookieHeader(request);
-}
-
-function withCustomerCookie(response: NextResponse, encodedCookieValue?: string) {
-  if (!encodedCookieValue) return response;
-
-  response.cookies.set(getCustomerIdCookieName(), encodedCookieValue, {
-    path: "/",
-    sameSite: "lax",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  return response;
-}
-
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -127,42 +72,16 @@ export async function POST(request: Request) {
   if (!isValidCheckoutBody(body)) {
     return NextResponse.json({ error: "Invalid checkout request" }, { status: 400 });
   }
-
   const quantity = Number(body.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) {
     return NextResponse.json({ error: "Quantity must be an integer >= 1" }, { status: 400 });
   }
 
-  const listing = await getListingByIdFromStore(body.listingId);
+  const listing = getListingById(body.listingId);
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
-
-  const appUrl = resolveAppOrigin(request);
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeSecretKey && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Checkout is temporarily unavailable." },
-      { status: 503 },
-    );
-  }
-
-  const customerCookie = await readUserIdFromCookie(request);
-  const customerId = deriveCustomerId(customerCookie.customerId);
-  const shouldSetCustomerCookie = !customerCookie.customerId || customerCookie.needsResign;
-  const encodedCustomerCookie = shouldSetCustomerCookie
-    ? encodeSignedCustomerId(customerId)
-    : undefined;
-
-  if (shouldSetCustomerCookie && !encodedCustomerCookie) {
-    return NextResponse.json(
-      { error: "Checkout is temporarily unavailable." },
-      { status: 503 },
-    );
-  }
-
-  const reservedListing = await reserveListingQuantityById(listing.id, quantity);
-  if (!reservedListing) {
+  if (listing.quantityRemaining < quantity) {
     return NextResponse.json({ error: "Not enough listing quantity available" }, { status: 400 });
   }
 
@@ -200,28 +119,6 @@ export async function POST(request: Request) {
   if (!stripeSecretKey) {
     // Dev fallback so frontend flow remains testable without keys.
     return NextResponse.json({ confirmationUrl });
-  const order = await createReservedOrder({
-    listing: reservedListing,
-    quantity,
-    customer: body.customer,
-    customerId,
-  });
-
-  await createInAppNotification({
-    userId: customerId,
-    title: "Reservation created",
-    message: `Your order for ${order.quantity}x ${order.listingTitle} is reserved.`,
-    linkHref: "/orders",
-  });
-
-  const confirmationUrl = `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
-    order.id,
-  )}`;
-
-  if (!stripeSecretKey) {
-    await updateOrderPaymentState(order.id, "paid");
-    const response = NextResponse.json({ confirmationUrl });
-    return withCustomerCookie(response, encodedCustomerCookie);
   }
 
   const stripe = new Stripe(stripeSecretKey);
@@ -233,8 +130,6 @@ export async function POST(request: Request) {
       metadata: {
         listingId: listing.id,
         orderId,
-        orderId: order.id,
-        listingId: reservedListing.id,
         customerName: body.customer.name,
         customerPhone: body.customer.phone,
         quantity: String(quantity),
@@ -244,9 +139,9 @@ export async function POST(request: Request) {
           quantity,
           price_data: {
             currency: "usd",
-            unit_amount: reservedListing.priceCents,
+            unit_amount: listing.priceCents,
             product_data: {
-              name: reservedListing.title,
+              name: listing.title,
             },
           },
         },
@@ -255,15 +150,7 @@ export async function POST(request: Request) {
         listing.id,
       )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
-      success_url: `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
-        order.id,
-      )}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/checkout/${encodeURIComponent(reservedListing.id)}?cancelled=1`,
     });
-
-    if (session.id) {
-      await attachOrderStripeSession(order.id, session.id);
-    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown Stripe API failure";
@@ -273,34 +160,12 @@ export async function POST(request: Request) {
     } catch (rollbackError) {
       console.error("Failed to rollback pending order after Stripe failure", rollbackError);
     }
-
-    try {
-      const canceled = await systemCancelOrder(order.id, "failed");
-      if (!canceled) {
-        console.error("Rollback skipped: order already transitioned", { orderId: order.id });
-      }
-    } catch (rollbackError) {
-      console.error("Rollback failed while canceling order:", rollbackError);
-    }
-
-    try {
-      const restored = await restoreListingQuantityById(reservedListing.id, quantity);
-      if (!restored) {
-        console.error("Rollback failed while restoring listing inventory", {
-          listingId: reservedListing.id,
-          quantity,
-        });
-      }
-    } catch (rollbackError) {
-      console.error("Rollback threw while restoring listing inventory:", rollbackError);
-    }
-
     return NextResponse.json(
       { error: "Unable to initialize payment session" },
       { status: 502 },
     );
   }
 
-  const response = NextResponse.json({ checkoutUrl: session.url });
-  return withCustomerCookie(response, encodedCustomerCookie);
+  return NextResponse.json({ checkoutUrl: session.url });
 }
+
