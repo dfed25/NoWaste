@@ -28,7 +28,8 @@
     "mobile:android:dev": "node scripts/mobile-sim-dev.mjs android",
     "sim:ios": "npm run mobile:ios:dev",
     "sim:android": "npm run mobile:android:dev",
-    "mobile:doctor": "npx cap doctor"
+    "mobile:doctor": "npx cap doctor",
+    "mobile:debug": "node scripts/mobile-debug.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.1",
