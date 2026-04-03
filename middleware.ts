@@ -9,6 +9,8 @@ const protectedPrefixes = [
   "/pickups",
   "/donation",
   "/admin",
+  "/orders",
+  "/listings",
   "/saved",
   "/notifications",
 ];
@@ -60,6 +62,8 @@ export const config = {
     "/pickups/:path*",
     "/donation/:path*",
     "/admin/:path*",
+    "/orders/:path*",
+    "/listings/:path*",
     "/saved/:path*",
     "/notifications/:path*",
     "/auth/:path*",

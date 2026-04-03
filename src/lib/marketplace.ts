@@ -15,6 +15,19 @@ export type ListingItem = {
   allergyNotes?: string;
 };
 
+export type ListingLifecycleStatus = "active" | "paused" | "archived";
+
+export type ManagedListing = ListingItem & {
+  quantityTotal: number;
+  reservationCutoffAt: string;
+  donationFallbackEnabled: boolean;
+  photoFileName?: string;
+  listingType: "consumer" | "donation";
+  status: ListingLifecycleStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type RestaurantItem = {
   id: string;
   name: string;
@@ -26,6 +39,7 @@ export type RestaurantItem = {
 
 export type CustomerOrder = {
   id: string;
+  customerId?: string;
   listingId: string;
   listingTitle: string;
   totalCents: number;
@@ -34,13 +48,8 @@ export type CustomerOrder = {
   pickupWindowEnd: string;
   createdAt: string;
   fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired" | "canceled";
-  paymentStatus: "pending" | "paid" | "refunded" | "failed";
+  paymentStatus: "paid" | "refunded" | "pending" | "failed";
   reservationCode: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  stripeSessionId?: string;
-  customerId?: string;
 };
 
 export const restaurants: RestaurantItem[] = [
@@ -109,6 +118,7 @@ export const listings: ListingItem[] = [
 export const mockOrders: CustomerOrder[] = [
   {
     id: "ord_1001",
+    customerId: "demo-customer",
     listingId: "l1",
     listingTitle: "Evening surplus bowl packs",
     totalCents: 1798,
@@ -119,10 +129,10 @@ export const mockOrders: CustomerOrder[] = [
     fulfillmentStatus: "reserved",
     paymentStatus: "paid",
     reservationCode: "NW-3H4K-8P2M",
-    customerId: "demo-customer",
   },
   {
     id: "ord_1002",
+    customerId: "demo-customer",
     listingId: "l2",
     listingTitle: "Bakery surprise bags",
     totalCents: 650,
@@ -133,7 +143,6 @@ export const mockOrders: CustomerOrder[] = [
     fulfillmentStatus: "expired",
     paymentStatus: "refunded",
     reservationCode: "NW-9L1D-2T7Q",
-    customerId: "demo-customer",
   },
 ];
 
@@ -187,8 +196,7 @@ export function getRestaurantById(id: string) {
   return restaurants.find((restaurant) => restaurant.id === id) ?? null;
 }
 
-export function getOrdersForCustomer(customerId?: string) {
-  if (!customerId) return mockOrders;
+export function getOrdersForCustomer(customerId = "demo-customer") {
   return mockOrders.filter((order) => order.customerId === customerId);
 }
 

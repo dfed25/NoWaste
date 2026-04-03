@@ -13,6 +13,7 @@ import {
   AUTH_COOKIE_NAME,
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
+import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
 type AuthContextValue = {
   user: User | null;
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setSession(null);
       setIsLoading(false);
-      syncAuthCookie(false);
+      syncAuthCookies(null);
       return () => {
         mounted = false;
       };
@@ -47,14 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(data.session);
       setIsLoading(false);
-      syncAuthCookie(Boolean(data.session));
+      syncAuthCookies(data.session);
     });
 
     ({
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      syncAuthCookie(Boolean(nextSession));
+      syncAuthCookies(nextSession);
     }));
 
     return () => {
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await supabase.auth.signOut();
         } finally {
           setSession(null);
-          syncAuthCookie(false);
+          syncAuthCookies(null);
         }
       },
     }),
@@ -92,13 +93,15 @@ export function useAuth() {
   return context;
 }
 
-function syncAuthCookie(isAuthenticated: boolean) {
+function syncAuthCookies(session: Session | null) {
   if (typeof document === "undefined") return;
 
-  if (isAuthenticated) {
+  if (session) {
     document.cookie = `${AUTH_COOKIE_NAME}=1; Path=/; Max-Age=604800; SameSite=Lax`;
+    document.cookie = `${CUSTOMER_ID_COOKIE_NAME}=${encodeURIComponent(session.user.id)}; Path=/; Max-Age=604800; SameSite=Lax`;
   } else {
     document.cookie = `${AUTH_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+    document.cookie = `${CUSTOMER_ID_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
   }
 }
 
