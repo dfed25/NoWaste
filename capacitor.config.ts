@@ -6,6 +6,9 @@ const config: CapacitorConfig = {
   appId: "com.nowaste.app",
   appName: "NoWaste",
   webDir: ".next",
+  ios: {
+    contentInset: "automatic",
+  },
   ...(serverUrl
     ? {
         server: {

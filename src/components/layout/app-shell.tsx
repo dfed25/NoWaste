@@ -11,11 +11,14 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 md:px-6">
-          <Link href="/" className="text-sm font-semibold tracking-tight text-brand-700">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 md:gap-4 md:px-6">
+          <Link
+            href="/"
+            className="shrink-0 text-sm font-semibold tracking-tight text-brand-700"
+          >
             NoWaste
           </Link>
-          <nav className="hidden items-center gap-5 text-sm text-neutral-600 md:flex">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-600 md:flex">
             <Link href="/dashboard" className="hover:text-neutral-900">
               Dashboard
             </Link>
@@ -38,8 +41,13 @@ export function AppShell({ children }: AppShellProps) {
               Onboarding
             </Link>
           </nav>
-          <div className="hidden md:block">
-            <AuthNavActions />
+          <div className="ml-auto shrink-0 md:ml-0">
+            <div className="md:hidden">
+              <AuthNavActions compact />
+            </div>
+            <div className="hidden md:block">
+              <AuthNavActions />
+            </div>
           </div>
         </div>
       </header>
