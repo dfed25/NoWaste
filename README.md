@@ -15,6 +15,17 @@ NoWaste is a Next.js app for reducing food waste by connecting surplus restauran
   - status filters and search
   - cancellation action with server updates
   - pickup code confirmation flow
+- Restaurant reservations queue (`/reservations`):
+  - lists persisted checkouts for the scoped restaurant (staff) or a selected restaurant (admin via `?restaurantId=`)
+  - mark **Picked up** or **No-show** (`PATCH /api/orders/[orderId]/fulfillment` with `{ "status": "picked_up" | "missed_pickup" }`)
+  - new reservations store `restaurantId` / `restaurantName` on the order at checkout time
+
+### Restaurant orders API (authenticated)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `GET` | `/api/orders/restaurant` | Staff: uses restaurant scope from session/cookies. Admin: requires `?restaurantId=<id>`. |
+| `PATCH` | `/api/orders/{orderId}/fulfillment` | Body: `{ "status": "picked_up" }` or `{ "status": "missed_pickup" }`. Only while fulfillment is `reserved`. |
 
 ## Local development
 

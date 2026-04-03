@@ -100,6 +100,8 @@ export async function POST(request: Request) {
       customerId,
       listingId: listing.id,
       listingTitle: listing.title,
+      restaurantId: listing.restaurantId,
+      restaurantName: listing.restaurantName,
       quantity,
       totalCents: listing.priceCents * quantity,
       pickupWindowStart: listing.pickupWindowStart,

@@ -8,6 +8,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/listings", label: "Listings" },
+  { href: "/reservations", label: "Pickup" },
   { href: "/account/settings", label: "Account" },
 ];
 
@@ -16,7 +17,7 @@ export function MobileNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur md:hidden">
-      <ul className="mx-auto grid max-w-lg grid-cols-4">
+      <ul className="mx-auto grid max-w-lg grid-cols-5">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
