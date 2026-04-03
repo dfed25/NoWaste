@@ -2,7 +2,23 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  -webkit-tap-highlight-color: transparent;
+}
+
+/* Subtle tap targets on mobile; avoid a blank flash on non-interactive chrome. */
+a,
+button,
+[role="button"],
+input,
+select,
+textarea,
+label {
+  -webkit-tap-highlight-color: rgba(22, 163, 74, 0.14);
+}
+
+a:active,
+button:active,
+[role="button"]:active {
+  opacity: 0.92;
 }
 
 :root {

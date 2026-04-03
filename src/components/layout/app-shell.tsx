@@ -42,12 +42,7 @@ export function AppShell({ children }: AppShellProps) {
             </Link>
           </nav>
           <div className="ml-auto shrink-0 md:ml-0">
-            <div className="md:hidden">
-              <AuthNavActions compact />
-            </div>
-            <div className="hidden md:block">
-              <AuthNavActions />
-            </div>
+            <AuthNavActions />
           </div>
         </div>
       </header>

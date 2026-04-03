@@ -62,6 +62,7 @@ export function MobileNav() {
             <li key={item.href} className="min-w-[4.25rem] flex-1 snap-start">
               <Link
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative flex h-[3.75rem] flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-medium leading-tight transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
