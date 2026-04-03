@@ -87,6 +87,12 @@ export async function POST(request: Request) {
 
   const appUrl = resolveAppOrigin(request);
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey && process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Checkout is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
   const customerId = (await readUserIdFromCookie(request)) ?? "demo-customer";
   let orderId: string;
   try {
@@ -111,12 +117,6 @@ export async function POST(request: Request) {
   )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}`;
 
   if (!stripeSecretKey) {
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Checkout is temporarily unavailable." },
-        { status: 503 },
-      );
-    }
     // Dev fallback so frontend flow remains testable without keys.
     return NextResponse.json({ confirmationUrl });
   }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { CustomerOrder } from "@/lib/marketplace";
 import { generatePickupCode, getOrdersForCustomer as getMockOrders } from "@/lib/marketplace";
@@ -75,7 +75,22 @@ async function readPersistedOrders(): Promise<CustomerOrder[]> {
 
 async function writePersistedOrders(next: CustomerOrder[]) {
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(ORDERS_FILE, JSON.stringify(next, null, 2), "utf8");
+  const tempFile = `${ORDERS_FILE}.${randomUUID()}.tmp`;
+  const payload = JSON.stringify(next, null, 2);
+  let handle: Awaited<ReturnType<typeof open>> | null = null;
+  try {
+    handle = await open(tempFile, "w");
+    await handle.writeFile(payload, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await rename(tempFile, ORDERS_FILE);
+  } finally {
+    if (handle) {
+      await handle.close().catch(() => undefined);
+    }
+    await rm(tempFile, { force: true }).catch(() => undefined);
+  }
 }
 
 function sortOrdersByCreatedAtDesc(orders: CustomerOrder[]) {
@@ -149,6 +164,26 @@ export async function deleteOrder(orderId: string, customerId: string): Promise<
   });
 }
 
+export async function updateOrderPaymentStatus(
+  orderId: string,
+  nextStatus: CustomerOrder["paymentStatus"],
+): Promise<CustomerOrder | null> {
+  return runExclusive(async () => {
+    const orders = await readPersistedOrders();
+    const index = orders.findIndex((order) => order.id === orderId);
+    if (index < 0) return null;
+    const current = orders[index];
+    if (current.paymentStatus === nextStatus) return current;
+    const updated: CustomerOrder = {
+      ...current,
+      paymentStatus: nextStatus,
+    };
+    orders[index] = updated;
+    await writePersistedOrders(orders);
+    return updated;
+  });
+}
+
 export async function cancelOrder(orderId: string, customerId: string) {
   return runExclusive(async () => {
     const orders = await readPersistedOrders();
@@ -164,7 +199,7 @@ export async function cancelOrder(orderId: string, customerId: string) {
       ...order,
       // Use "expired" as the canceled terminal state in the current order model.
       fulfillmentStatus: "expired",
-      paymentStatus: "refunded",
+      paymentStatus: order.paymentStatus === "paid" ? "refunded" : order.paymentStatus,
     };
     orders[index] = canceled;
     await writePersistedOrders(orders);

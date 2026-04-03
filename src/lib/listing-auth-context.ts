@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
-import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
-import { AUTH_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import { RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import { verifyServerSession } from "@/lib/server-session";
 
 export type ListingAuthContext = {
   isAuthenticated: boolean;
@@ -8,11 +8,27 @@ export type ListingAuthContext = {
   scopedRestaurantId: string | undefined;
 };
 
-export async function resolveListingAuthContext(): Promise<ListingAuthContext> {
+export async function resolveListingAuthContext(request: Request): Promise<ListingAuthContext> {
+  const verified = verifyServerSession(request);
+  if (!verified.isAuthenticated || !verified.user?.role) {
+    return {
+      isAuthenticated: false,
+      role: undefined,
+      scopedRestaurantId: undefined,
+    };
+  }
+
   const cookieStore = await cookies();
+  const role = verified.user.role;
+  // Fail closed in production until restaurant scope is bound to a verified server session payload.
+  const scopedRestaurantId =
+    role === "restaurant_staff" && process.env.NODE_ENV !== "production"
+      ? cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value
+      : undefined;
+
   return {
-    isAuthenticated: cookieStore.get(AUTH_COOKIE_NAME)?.value === "1",
-    role: cookieStore.get(ADMIN_ROLE_COOKIE)?.value,
-    scopedRestaurantId: cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value,
+    isAuthenticated: true,
+    role,
+    scopedRestaurantId,
   };
 }

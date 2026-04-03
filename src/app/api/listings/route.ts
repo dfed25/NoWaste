@@ -38,8 +38,8 @@ function resolveTargetRestaurantId(
   return { ok: true, restaurantId };
 }
 
-export async function GET() {
-  const context = await resolveListingAuthContext();
+export async function GET(request: Request) {
+  const context = await resolveListingAuthContext(request);
   if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -62,7 +62,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const context = await resolveListingAuthContext();
+  const context = await resolveListingAuthContext(request);
 
   if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

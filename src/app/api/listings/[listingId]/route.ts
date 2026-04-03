@@ -3,6 +3,13 @@ import { z } from "zod";
 import { deleteManagedListing, updateManagedListing } from "@/lib/marketplace-store";
 import { resolveListingAuthContext } from "@/lib/listing-auth-context";
 
+function toIsoOrUndefined(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
 const patchSchema = z
   .object({
     action: z.enum(["pause", "activate", "archive"]).optional(),
@@ -12,17 +19,19 @@ const patchSchema = z
     discountedPriceCents: z.number().int().nonnegative().optional(),
     quantityTotal: z.number().int().positive().optional(),
     quantityRemaining: z.number().int().nonnegative().optional(),
-    pickupWindowStart: z.string().optional(),
-    pickupWindowEnd: z.string().optional(),
-    reservationCutoffAt: z.string().optional(),
+    pickupWindowStart: z.string().refine((value) => toIsoOrUndefined(value) !== undefined, {
+      message: "pickupWindowStart must be a valid datetime",
+    }).optional(),
+    pickupWindowEnd: z.string().refine((value) => toIsoOrUndefined(value) !== undefined, {
+      message: "pickupWindowEnd must be a valid datetime",
+    }).optional(),
+    reservationCutoffAt: z.string().refine((value) => toIsoOrUndefined(value) !== undefined, {
+      message: "reservationCutoffAt must be a valid datetime",
+    }).optional(),
   })
   .refine((value) => value.action || Object.keys(value).length > 0, {
     message: "Provide at least one update field",
   });
-
-async function resolveAuthContext() {
-  return resolveListingAuthContext();
-}
 
 function mapActionToStatus(action: "pause" | "activate" | "archive") {
   if (action === "pause") return "paused" as const;
@@ -30,18 +39,11 @@ function mapActionToStatus(action: "pause" | "activate" | "archive") {
   return "active" as const;
 }
 
-function toIsoOrUndefined(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString();
-}
-
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ listingId: string }> },
 ) {
-  const auth = await resolveAuthContext();
+  const auth = await resolveListingAuthContext(request);
   if (!auth.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -95,10 +97,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ listingId: string }> },
 ) {
-  const auth = await resolveAuthContext();
+  const auth = await resolveListingAuthContext(request);
   if (!auth.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

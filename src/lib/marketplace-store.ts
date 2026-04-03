@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { ListingInput } from "@/lib/validation";
 import type { ListingLifecycleStatus, ListingItem, ManagedListing } from "@/lib/marketplace";
@@ -245,14 +245,20 @@ export async function updateManagedListing(
       ...existing,
       title: changes.title?.trim() || existing.title,
       description: changes.description?.trim() || existing.description,
-      allergyNotes: changes.allergyNotes?.trim() || existing.allergyNotes,
+      allergyNotes:
+        changes.allergyNotes === undefined
+          ? existing.allergyNotes
+          : changes.allergyNotes.trim() || undefined,
       priceCents: changes.priceCents ?? existing.priceCents,
       quantityTotal: nextQuantityTotal,
       quantityRemaining: nextQuantityRemaining,
       pickupWindowStart: changes.pickupWindowStart ?? existing.pickupWindowStart,
       pickupWindowEnd: changes.pickupWindowEnd ?? existing.pickupWindowEnd,
       reservationCutoffAt: changes.reservationCutoffAt ?? existing.reservationCutoffAt,
-      photoFileName: changes.photoFileName?.trim() || existing.photoFileName,
+      photoFileName:
+        changes.photoFileName === undefined
+          ? existing.photoFileName
+          : changes.photoFileName.trim() || undefined,
       donationFallbackEnabled:
         changes.donationFallbackEnabled ?? existing.donationFallbackEnabled,
       listingType: changes.listingType ?? existing.listingType,
@@ -285,6 +291,23 @@ export async function deleteManagedListing(
 
 async function writePersistedListings(next: ManagedListing[]) {
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(LISTINGS_FILE, JSON.stringify(next, null, 2), "utf8");
+  const tempFile = `${LISTINGS_FILE}.${randomUUID()}.tmp`;
+  const payload = JSON.stringify(next, null, 2);
+  let handle: Awaited<ReturnType<typeof open>> | null = null;
+  try {
+    handle = await open(tempFile, "w");
+    await handle.writeFile(payload, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await rename(tempFile, LISTINGS_FILE);
+  } catch (error) {
+    throw error;
+  } finally {
+    if (handle) {
+      await handle.close().catch(() => undefined);
+    }
+    await rm(tempFile, { force: true }).catch(() => undefined);
+  }
 }
 

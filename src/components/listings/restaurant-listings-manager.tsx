@@ -48,6 +48,7 @@ export function RestaurantListingsManager() {
   const [activeEditId, setActiveEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [isMutating, setIsMutating] = useState(false);
+  const [hasLoadedSuccess, setHasLoadedSuccess] = useState(false);
 
   async function loadListings() {
     setIsLoading(true);
@@ -62,6 +63,7 @@ export function RestaurantListingsManager() {
         throw new Error(payload.error ?? "Could not load listings");
       }
       setListings(Array.isArray(payload.listings) ? payload.listings : []);
+      setHasLoadedSuccess(true);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load listings");
     } finally {
@@ -115,7 +117,7 @@ export function RestaurantListingsManager() {
   async function runMutation(
     listingId: string,
     options: { method: "PATCH" | "DELETE"; body?: Record<string, unknown> },
-  ) {
+  ): Promise<boolean> {
     setIsMutating(true);
     setError(null);
     try {
@@ -141,8 +143,10 @@ export function RestaurantListingsManager() {
       } else {
         await loadListings();
       }
+      return true;
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "Listing update failed");
+      return false;
     } finally {
       setIsMutating(false);
     }
@@ -150,9 +154,11 @@ export function RestaurantListingsManager() {
 
   async function saveEdit() {
     if (!activeEditId || !editDraft) return;
-    await runMutation(activeEditId, { method: "PATCH", body: editDraft });
-    setActiveEditId(null);
-    setEditDraft(null);
+    const didSave = await runMutation(activeEditId, { method: "PATCH", body: editDraft });
+    if (didSave) {
+      setActiveEditId(null);
+      setEditDraft(null);
+    }
   }
 
   return (
@@ -223,7 +229,7 @@ export function RestaurantListingsManager() {
         <Card role="status" aria-busy="true" className="space-y-1">
           <p className="text-sm text-neutral-600">Loading listings manager...</p>
         </Card>
-      ) : filteredListings.length === 0 ? (
+      ) : !error && hasLoadedSuccess && filteredListings.length === 0 ? (
         <EmptyState
           title="No listings found"
           description="Try changing filters or create a fresh listing for tonight."
