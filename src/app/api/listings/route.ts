@@ -1,36 +1,91 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 import { restaurants } from "@/lib/marketplace";
-import { saveListing } from "@/lib/marketplace-store";
+import { listManagedListings, saveListing } from "@/lib/marketplace-store";
 import { listingSchema } from "@/lib/validation";
 
 const AUTH_COOKIE_NAME = "nw-authenticated";
 const RESTAURANT_ID_COOKIE_NAME = "nw-restaurant-id";
 
-function parseCookies(cookieHeader: string) {
-  return Object.fromEntries(
-    cookieHeader
-      .split(";")
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((pair) => {
-        const index = pair.indexOf("=");
-        if (index < 0) return [pair, ""];
-        return [pair.slice(0, index), decodeURIComponent(pair.slice(index + 1))];
-      }),
-  );
+type AuthContext = {
+  isAuthenticated: boolean;
+  role: string | undefined;
+  scopedRestaurantId: string | undefined;
+};
+
+function canManageListings(role: string | undefined) {
+  return role === "restaurant_staff" || role === "admin";
+}
+
+function resolveContext() {
+  return cookies().then((cookieStore) => {
+    const context: AuthContext = {
+      isAuthenticated: cookieStore.get(AUTH_COOKIE_NAME)?.value === "1",
+      role: cookieStore.get(ADMIN_ROLE_COOKIE)?.value,
+      scopedRestaurantId: cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value,
+    };
+    return context;
+  });
+}
+
+function resolveTargetRestaurantId(
+  context: AuthContext,
+  requestedRestaurantId?: string,
+): { ok: true; restaurantId: string } | { ok: false; status: number; error: string } {
+  if (context.role === "restaurant_staff" && !context.scopedRestaurantId) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Restaurant staff must be scoped to a restaurant",
+    };
+  }
+  if (
+    context.role === "restaurant_staff" &&
+    requestedRestaurantId &&
+    context.scopedRestaurantId !== requestedRestaurantId
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      error: "You can only manage listings for your assigned restaurant",
+    };
+  }
+
+  const restaurantId = requestedRestaurantId ?? context.scopedRestaurantId;
+  if (!restaurantId) {
+    return { ok: false, status: 400, error: "Restaurant context is required" };
+  }
+  return { ok: true, restaurantId };
+}
+
+export async function GET() {
+  const context = await resolveContext();
+  if (!context.isAuthenticated) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canManageListings(context.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const listings = await listManagedListings(
+      context.role === "admin" ? {} : { restaurantId: context.scopedRestaurantId },
+    );
+    return NextResponse.json({ listings }, { status: 200 });
+  } catch (error) {
+    console.error("Failed to fetch managed listings", error);
+    return NextResponse.json({ error: "Failed to load listings" }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
-  const cookies = parseCookies(request.headers.get("cookie") ?? "");
-  const isAuthenticated = cookies[AUTH_COOKIE_NAME] === "1";
-  const role = cookies[ADMIN_ROLE_COOKIE];
-  const scopedRestaurantId = cookies[RESTAURANT_ID_COOKIE_NAME];
+  const context = await resolveContext();
 
-  if (!isAuthenticated) {
+  if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (role !== "restaurant_staff" && role !== "admin") {
+  if (!canManageListings(context.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -54,23 +109,12 @@ export async function POST(request: Request) {
       ? ((payload as Record<string, unknown>).restaurantId as string)
       : undefined;
 
-  const targetRestaurantId = requestedRestaurantId ?? scopedRestaurantId;
-  if (!targetRestaurantId) {
-    return NextResponse.json({ error: "Restaurant context is required" }, { status: 400 });
-  }
-  if (
-    role === "restaurant_staff" &&
-    scopedRestaurantId &&
-    requestedRestaurantId &&
-    scopedRestaurantId !== requestedRestaurantId
-  ) {
-    return NextResponse.json(
-      { error: "You can only create listings for your assigned restaurant" },
-      { status: 403 },
-    );
+  const targetResolution = resolveTargetRestaurantId(context, requestedRestaurantId);
+  if (!targetResolution.ok) {
+    return NextResponse.json({ error: targetResolution.error }, { status: targetResolution.status });
   }
 
-  const restaurant = restaurants.find((candidate) => candidate.id === targetRestaurantId);
+  const restaurant = restaurants.find((candidate) => candidate.id === targetResolution.restaurantId);
   if (!restaurant) {
     return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
   }

@@ -1,25 +1,48 @@
 import Link from "next/link";
-import { EmptyState } from "@/components/states/empty-state";
-import { Button } from "@/components/ui/button";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
+import { RestaurantListingsManager } from "@/components/listings/restaurant-listings-manager";
+import { Card } from "@/components/ui/card";
 
-export default function ListingsPage() {
+const AUTH_COOKIE_NAME = "nw-authenticated";
+
+export default async function ListingsPage() {
+  const cookieStore = await cookies();
+  const isAuthenticated = cookieStore.get(AUTH_COOKIE_NAME)?.value === "1";
+  const role = cookieStore.get(ADMIN_ROLE_COOKIE)?.value;
+  if (!isAuthenticated) {
+    redirect("/auth/login?next=/listings");
+  }
+  if (role !== "restaurant_staff" && role !== "admin") {
+    redirect("/dashboard");
+  }
+
   return (
-    <section className="space-y-4">
-      <div>
-        <h1 className="text-title-lg">Listings</h1>
-        <p className="text-body-sm text-neutral-600">
-          Shared listing surface for consumer and donation flows.
+    <section className="space-y-6">
+      <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-white to-brand-50 p-5">
+        <h1 className="text-title-lg">Listings operations</h1>
+        <p className="mt-1 text-body-sm text-neutral-600">
+          Control live listing inventory, publish new offers quickly, and keep pickup windows accurate.
         </p>
-      </div>
-      <EmptyState
-        title="No listings yet"
-        description="Create your first listing to start accepting reservations."
-        action={
-          <Link href="/listings/new">
-            <Button size="sm">Create listing</Button>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          <Link className="text-brand-700 hover:underline" href="/listings/new">
+            Create a new listing
           </Link>
-        }
-      />
+          <Link className="text-brand-700 hover:underline" href="/dashboard">
+            Back to dashboard
+          </Link>
+        </div>
+      </div>
+
+      <Card className="space-y-2 bg-white">
+        <p className="text-sm text-neutral-600">
+          This management hub updates persisted listings through authenticated APIs. Changes appear instantly for your
+          operations team.
+        </p>
+      </Card>
+
+      <RestaurantListingsManager />
     </section>
   );
 }

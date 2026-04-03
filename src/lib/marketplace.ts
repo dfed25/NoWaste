@@ -15,6 +15,19 @@ export type ListingItem = {
   allergyNotes?: string;
 };
 
+export type ListingLifecycleStatus = "active" | "paused" | "archived";
+
+export type ManagedListing = ListingItem & {
+  quantityTotal: number;
+  reservationCutoffAt: string;
+  donationFallbackEnabled: boolean;
+  photoFileName?: string;
+  listingType: "consumer" | "donation";
+  status: ListingLifecycleStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type RestaurantItem = {
   id: string;
   name: string;
