@@ -49,19 +49,18 @@ npm test
 npm run build
 ```
 
-## Mobile simulator testing (same web app)
+## Platform-specific development (web, iOS, Android)
 
-This repository currently runs as a responsive web app (no native shell required).
-You can still test mobile UX quickly:
+NoWaste ships as a **Next.js** app with optional **Capacitor** native shells. It is **not** Expo: `npm run dev` does not show `i` / `a` / `w` shortcuts (that is Expo CLI). Use the flows in **[CONTRIBUTING.md](./CONTRIBUTING.md)** instead.
 
-1. Start dev server: `npm run dev`
-2. Open Chrome dev tools and use device emulation, or
-3. Open iOS Simulator and browse to your machine IP:
-   - `http://<your-lan-ip>:3000`
-   - For best results run from the same Wi-Fi network.
+| Goal | Command / flow |
+|------|------------------|
+| **Web (any OS)** | `npm run dev` → open http://localhost:3000 |
+| **iOS Simulator (Mac + Xcode)** | Terminal A: `npm run dev:mobile` · Terminal B: `npm run ios` |
+| **Android emulator** | One-time `npm run mobile:android:add`, then same two-terminal pattern with `npm run android` |
+| **Physical device** | `npm run dev:mobile` plus `CAP_SERVER_URL=http://<your-LAN-IP>:3000` when running Capacitor (see Contributing) |
 
-If you want native packaging next, the next chunk can add Capacitor iOS integration on top of this branch.
-NoWaste is a full-stack Next.js app focused on reducing food waste by helping restaurants list surplus food, customers reserve pickups, and donation partners claim unsold inventory.
+Short **merge-friendly workflow** tips for larger features are also in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Tech Stack
 
@@ -142,49 +141,13 @@ npm run dev:turbo
 
 App runs at `http://localhost:3000`.
 
-## iOS Simulator Testing (Xcode)
-
-You can run NoWaste in an iOS simulator using Capacitor.
-
-### Prerequisites
-
-- Xcode installed (with iOS Simulator)
-- CocoaPods installed (`sudo gem install cocoapods` if needed)
-
-### First-time setup
-
-```bash
-npm install
-npm run mobile:ios:add
-npm run mobile:sync
-npm run mobile:ios:open
-```
-
-Then in Xcode:
-
-1. Select a simulator device (for example iPhone 15)
-2. Press Run
-
-### Live-reload workflow (recommended)
-
-In terminal A:
-
-```bash
-npm run dev:mobile
-```
-
-In terminal B:
-
-```bash
-npm run mobile:ios:run
-```
-
-This launches the app in the simulator and points it at your local dev server using `CAP_SERVER_URL=http://localhost:3000`.
-
 ## Available Scripts
 
 - `npm run dev` - start local dev server (Webpack mode)
+- `npm run dev:mobile` - dev server on `0.0.0.0:3000` (for simulators / LAN devices)
 - `npm run dev:turbo` - start local dev server in Turbopack mode
+- `npm run ios` / `npm run android` - Capacitor live reload against `http://localhost:3000` (requires native project; see [CONTRIBUTING.md](./CONTRIBUTING.md))
+- `npm run mobile:sync` - production build + `cap sync` (all added platforms)
 - `npm run build` - production build
 - `npm run start` - run production server
 - `npm run lint` - lint codebase
@@ -225,6 +188,7 @@ This launches the app in the simulator and points it at your local dev server us
 
 - Branch protection on `main` requires PR review.
 - Use feature/fix branches and open PRs into `main`.
+- Larger features: follow [CONTRIBUTING.md](./CONTRIBUTING.md) to reduce merge pain on shared files and native projects.
 - Keep secrets only in `.env.local`; never commit secrets.
 
 

@@ -16,9 +16,14 @@
     "test:integration": "vitest run src/app/api",
     "test:ci": "vitest run --reporter=dot",
     "mobile:ios:add": "npx cap add ios",
-    "mobile:sync": "npm run build && npx cap sync ios",
+    "mobile:android:add": "npx cap add android",
+    "mobile:sync": "npm run build && npx cap sync",
     "mobile:ios:open": "npx cap open ios",
-    "mobile:ios:run": "npx cap run ios -l --external"
+    "mobile:android:open": "npx cap open android",
+    "mobile:ios:run": "cross-env CAP_SERVER_URL=http://localhost:3000 npx cap run ios -l --external",
+    "mobile:android:run": "cross-env CAP_SERVER_URL=http://localhost:3000 npx cap run android -l --external",
+    "android": "npm run mobile:android:run",
+    "ios": "npm run mobile:ios:run"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.1",
@@ -34,6 +39,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.6.1",
     "@capacitor/cli": "^7.6.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -41,6 +47,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "jsdom": "^27.0.1",
