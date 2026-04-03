@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 const CUSTOMER_ID_COOKIE_NAME = "nw-user-id";
+const isProduction = process.env.NODE_ENV === "production";
 
 type ParsedCustomerId = {
   customerId?: string;
@@ -45,9 +46,15 @@ export function parseCustomerIdCookie(rawValue: string | undefined): ParsedCusto
 
   // Legacy unsigned IDs should be accepted before dot-based signed parsing.
   if (isLegacyCustomerId(rawValue)) {
+    const secret = getCookieSecret();
+    if (!secret && isProduction) {
+      // Fail closed in production when unsigned identity cannot be validated.
+      return { needsResign: false };
+    }
+
     return {
       customerId: rawValue,
-      needsResign: Boolean(getCookieSecret()),
+      needsResign: Boolean(secret),
     };
   }
 

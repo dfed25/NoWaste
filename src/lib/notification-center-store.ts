@@ -5,6 +5,7 @@ import { createRunExclusive } from "@/lib/file-queue";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
+const DISMISSED_RETENTION_DAYS = 14;
 const runExclusive = createRunExclusive();
 
 export type InAppNotification = {
@@ -14,6 +15,7 @@ export type InAppNotification = {
   message: string;
   createdAt: string;
   readAt?: string;
+  dismissedAt?: string;
   linkHref?: string;
 };
 
@@ -23,6 +25,18 @@ type NotificationInput = {
   message: string;
   linkHref?: string;
 };
+
+
+function compactDismissedNotifications(items: InAppNotification[]): InAppNotification[] {
+  const cutoffMs = Date.now() - DISMISSED_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+  return items.filter((item) => {
+    if (!item.dismissedAt) return true;
+    const dismissedAtMs = new Date(item.dismissedAt).getTime();
+    if (Number.isNaN(dismissedAtMs)) return true;
+    return dismissedAtMs >= cutoffMs;
+  });
+}
 
 async function readPersistedNotifications(): Promise<InAppNotification[]> {
   try {
@@ -39,7 +53,8 @@ async function readPersistedNotifications(): Promise<InAppNotification[]> {
 
 async function writePersistedNotifications(next: InAppNotification[]) {
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(NOTIFICATIONS_FILE, JSON.stringify(next, null, 2), "utf8");
+  const compacted = compactDismissedNotifications(next);
+  await writeFile(NOTIFICATIONS_FILE, JSON.stringify(compacted, null, 2), "utf8");
 }
 
 export async function createInAppNotification(input: NotificationInput): Promise<InAppNotification> {
@@ -63,7 +78,7 @@ export async function listInAppNotificationsForUser(userId: string): Promise<InA
   return runExclusive(async () => {
     const current = await readPersistedNotifications();
     return current
-      .filter((item) => item.userId === userId)
+      .filter((item) => item.userId === userId && !item.dismissedAt)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   });
 }
@@ -77,7 +92,7 @@ export async function markNotificationReadForUser(userId: string, notificationId
   return runExclusive(async () => {
     const current = await readPersistedNotifications();
     const index = current.findIndex(
-      (item) => item.id === notificationId && item.userId === userId,
+      (item) => item.id === notificationId && item.userId === userId && !item.dismissedAt,
     );
     if (index < 0) return null;
 
@@ -96,6 +111,29 @@ export async function markNotificationReadForUser(userId: string, notificationId
   });
 }
 
+export async function markNotificationUnreadForUser(userId: string, notificationId: string) {
+  return runExclusive(async () => {
+    const current = await readPersistedNotifications();
+    const index = current.findIndex(
+      (item) => item.id === notificationId && item.userId === userId && !item.dismissedAt,
+    );
+    if (index < 0) return null;
+
+    const existing = current[index];
+    if (!existing.readAt) return existing;
+
+    const updated: InAppNotification = {
+      ...existing,
+      readAt: undefined,
+    };
+
+    const next = [...current];
+    next[index] = updated;
+    await writePersistedNotifications(next);
+    return updated;
+  });
+}
+
 export async function markAllNotificationsReadForUser(userId: string): Promise<number> {
   return runExclusive(async () => {
     const current = await readPersistedNotifications();
@@ -103,7 +141,7 @@ export async function markAllNotificationsReadForUser(userId: string): Promise<n
     let changed = 0;
 
     const next = current.map((item) => {
-      if (item.userId !== userId || item.readAt) return item;
+      if (item.userId !== userId || item.readAt || item.dismissedAt) return item;
       changed += 1;
       return { ...item, readAt: now };
     });
@@ -113,5 +151,59 @@ export async function markAllNotificationsReadForUser(userId: string): Promise<n
     }
 
     return changed;
+  });
+}
+
+export async function dismissNotificationForUser(userId: string, notificationId: string) {
+  return runExclusive(async () => {
+    const current = await readPersistedNotifications();
+    const index = current.findIndex(
+      (item) => item.id === notificationId && item.userId === userId,
+    );
+    if (index < 0) return null;
+
+    const existing = current[index];
+    if (existing.dismissedAt) return existing;
+
+    const updated: InAppNotification = {
+      ...existing,
+      dismissedAt: new Date().toISOString(),
+    };
+
+    const next = [...current];
+    next[index] = updated;
+    await writePersistedNotifications(next);
+    return updated;
+  });
+}
+
+export async function clearReadNotificationsForUser(userId: string): Promise<number> {
+  return runExclusive(async () => {
+    const current = await readPersistedNotifications();
+    const now = new Date().toISOString();
+    let changed = 0;
+
+    const next = current.map((item) => {
+      if (item.userId !== userId || !item.readAt || item.dismissedAt) return item;
+      changed += 1;
+      return { ...item, dismissedAt: now };
+    });
+
+    if (changed > 0) {
+      await writePersistedNotifications(next);
+    }
+
+    return changed;
+  });
+}
+
+
+export async function compactNotificationStore() {
+  return runExclusive(async () => {
+    const current = await readPersistedNotifications();
+    const compacted = compactDismissedNotifications(current);
+    if (compacted.length === current.length) return 0;
+    await writePersistedNotifications(compacted);
+    return current.length - compacted.length;
   });
 }
