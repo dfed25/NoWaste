@@ -253,6 +253,11 @@ App runs at `http://localhost:3000`.
   - Run full local validation:
     - `npm run lint && npm test && npm run typecheck && npm run build`
 
+- **`npm run mobile:sync` fails on `pod install` / `xcodebuild` / “CommandLineTools”**
+  - iOS sync requires the **full Xcode app**, not only Apple Command Line Tools.
+  - Run: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` then `sudo xcodebuild -runFirstLaunch`, open Xcode once, and retry `mobile:sync`.
+  - More detail: [CONTRIBUTING.md](./CONTRIBUTING.md) (macOS + Xcode section).
+
 ## Verification Checklist
 
 Before opening a PR:
