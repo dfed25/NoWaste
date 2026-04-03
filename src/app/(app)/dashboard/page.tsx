@@ -12,15 +12,29 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <Card className="space-y-2 border-brand-100 bg-gradient-to-r from-brand-50 to-white">
-        <h2 className="text-title-md">New: Listings operations hub</h2>
-        <p className="text-sm text-neutral-600">
-          Quickly pause, archive, edit inventory, and publish new listings from one screen.
-        </p>
-        <Link href="/listings" className="inline-flex text-sm font-medium text-brand-700 hover:underline">
-          Open listings hub
-        </Link>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="space-y-2 border-brand-100 bg-gradient-to-r from-brand-50 to-white">
+          <h2 className="text-title-md">Listings hub</h2>
+          <p className="text-sm text-neutral-600">
+            Pause, archive, edit inventory, and publish new listings from one screen.
+          </p>
+          <Link href="/listings" className="inline-flex text-sm font-medium text-brand-700 hover:underline">
+            Open listings hub
+          </Link>
+        </Card>
+        <Card className="space-y-2 border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
+          <h2 className="text-title-md">Live reservations</h2>
+          <p className="text-sm text-neutral-600">
+            See today&apos;s checkouts, confirm pickup codes, and close the loop when guests arrive.
+          </p>
+          <Link
+            href="/reservations"
+            className="inline-flex text-sm font-medium text-emerald-800 hover:underline"
+          >
+            Open reservations
+          </Link>
+        </Card>
+      </div>
 
       <RestaurantDashboardShell />
       <div className="flex flex-wrap gap-3 text-sm">

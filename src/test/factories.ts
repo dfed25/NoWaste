@@ -21,6 +21,8 @@ export function makeOrder(overrides: Partial<CustomerOrder> = {}): CustomerOrder
   return {
     id: "ord_test",
     listingId: "listing_test",
+    restaurantId: "r_test",
+    restaurantName: "Factory Restaurant",
     listingTitle: "Factory listing",
     totalCents: 1400,
     quantity: 2,

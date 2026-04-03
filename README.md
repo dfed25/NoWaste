@@ -15,6 +15,21 @@ NoWaste is a Next.js app for reducing food waste by connecting surplus restauran
   - status filters and search
   - cancellation action with server updates
   - pickup code confirmation flow
+- Restaurant reservations queue (`/reservations`):
+  - lists persisted checkouts for the scoped restaurant (staff) or a selected restaurant (admin via `?restaurantId=`)
+  - mark **Picked up** or **No-show** (`PATCH /api/orders/{orderId}/fulfillment` with `{ "status": "picked_up" | "missed_pickup" }`)
+  - new reservations store `restaurantId` / `restaurantName` on the order at checkout time
+
+### Restaurant orders API (authenticated)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `GET` | `/api/orders/restaurant` | Staff: restaurant scope comes from the **signed** session (`nw-session-sig` covers `nw-restaurant-id`). Admin: requires `?restaurantId=<id>`. |
+| `PATCH` | `/api/orders/{orderId}/fulfillment` | Body: `{ "status": "picked_up" }` or `{ "status": "missed_pickup" }`. Only while fulfillment is `reserved`. |
+
+Signed session cookies (`nw-authenticated`, `nw-role`, optional `nw-restaurant-id`, and `nw-session-sig`) use `AUTH_SESSION_SECRET`. Staff cannot change `nw-restaurant-id` without invalidating the signature.
+
+For local demos, `POST /api/auth/nw-session` with JSON such as `{ "role": "restaurant_staff", "restaurantId": "r1" }` sets matching cookies. In production the route requires `ALLOW_NW_SESSION_ISSUE=1` **and** header `x-nw-session-issue-secret` matching `NW_SESSION_ISSUE_SECRET`. Prefer issuing scope from your auth provider when user profiles store `restaurantId`.
 
 ## Local development
 

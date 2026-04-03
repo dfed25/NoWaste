@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { cancelOrder, createReservedOrder, listOrdersForCustomer } from "@/lib/order-store";
+import type { CustomerOrder } from "@/lib/marketplace";
+import {
+  cancelOrder,
+  createReservedOrder,
+  listOrdersForCustomer,
+  listOrdersForRestaurant,
+  updateOrderFulfillment,
+} from "@/lib/order-store";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
@@ -17,6 +24,8 @@ describe("order-store", () => {
       customerId: "cust_1",
       listingId: "l1",
       listingTitle: "Test Listing",
+      restaurantId: "r1",
+      restaurantName: "Test Kitchen",
       quantity: 2,
       totalCents: 1800,
       pickupWindowStart: "2026-04-02T20:00:00.000Z",
@@ -37,6 +46,8 @@ describe("order-store", () => {
       customerId: "cust_2",
       listingId: "l2",
       listingTitle: "Cancel Listing",
+      restaurantId: "r2",
+      restaurantName: "Cancel Cafe",
       quantity: 1,
       totalCents: 700,
       pickupWindowStart: pickupStart.toISOString(),
@@ -50,5 +61,29 @@ describe("order-store", () => {
     const canceled = await cancelOrder(created.id, "cust_2");
     expect(canceled?.fulfillmentStatus).toBe("expired");
     expect(canceled?.paymentStatus).toBe("refunded");
+  });
+
+  it("lists and updates fulfillment for a restaurant", async () => {
+    const created = await createReservedOrder({
+      customerId: "cust_r",
+      listingId: "lx",
+      listingTitle: "Staff test",
+      restaurantId: "r_staff",
+      restaurantName: "Staff Place",
+      quantity: 1,
+      totalCents: 500,
+      pickupWindowStart: "2026-04-02T20:00:00.000Z",
+      pickupWindowEnd: "2026-04-02T21:00:00.000Z",
+      paymentStatus: "paid",
+    });
+
+    const listed = await listOrdersForRestaurant("r_staff");
+    expect(listed.some((o: CustomerOrder) => o.id === created.id)).toBe(true);
+
+    const picked = await updateOrderFulfillment(created.id, "picked_up");
+    expect(picked?.fulfillmentStatus).toBe("picked_up");
+
+    const again = await updateOrderFulfillment(created.id, "missed_pickup");
+    expect(again).toBeNull();
   });
 });

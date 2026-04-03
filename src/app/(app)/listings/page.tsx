@@ -28,6 +28,9 @@ export default async function ListingsPage() {
           <Link className="text-brand-700 hover:underline" href="/listings/new">
             Create a new listing
           </Link>
+          <Link className="font-medium text-emerald-800 hover:underline" href="/reservations">
+            Live reservations
+          </Link>
           <Link className="text-brand-700 hover:underline" href="/dashboard">
             Back to dashboard
           </Link>

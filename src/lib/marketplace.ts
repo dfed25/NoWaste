@@ -42,6 +42,11 @@ export type CustomerOrder = {
   customerId?: string;
   listingId: string;
   listingTitle: string;
+  /** Set on new reservations; older rows may rely on listing lookup. */
+  restaurantId?: string;
+  restaurantName?: string;
+  /** ISO 4217 code when multi-currency is used; defaults to USD in UI when omitted. */
+  currency?: string;
   totalCents: number;
   quantity: number;
   pickupWindowStart: string;
@@ -120,6 +125,8 @@ export const mockOrders: CustomerOrder[] = [
     id: "ord_1001",
     customerId: "demo-customer",
     listingId: "l1",
+    restaurantId: "r1",
+    restaurantName: "Green Fork Kitchen",
     listingTitle: "Evening surplus bowl packs",
     totalCents: 1798,
     quantity: 2,
@@ -134,6 +141,8 @@ export const mockOrders: CustomerOrder[] = [
     id: "ord_1002",
     customerId: "demo-customer",
     listingId: "l2",
+    restaurantId: "r2",
+    restaurantName: "Brick Oven Bakery",
     listingTitle: "Bakery surprise bags",
     totalCents: 650,
     quantity: 1,
@@ -190,6 +199,11 @@ export function filterListings(
 
 export function getListingById(id: string) {
   return listings.find((listing) => listing.id === id) ?? null;
+}
+
+export function resolveRestaurantIdForOrder(order: CustomerOrder): string | undefined {
+  if (order.restaurantId) return order.restaurantId;
+  return getListingById(order.listingId)?.restaurantId;
 }
 
 export function getRestaurantById(id: string) {

@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { CustomerOrder } from "@/lib/marketplace";
-import { generatePickupCode, getOrdersForCustomer as getMockOrders } from "@/lib/marketplace";
+import {
+  generatePickupCode,
+  getOrdersForCustomer as getMockOrders,
+  resolveRestaurantIdForOrder,
+} from "@/lib/marketplace";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
@@ -50,6 +54,9 @@ function isValidOrderRecord(value: unknown): value is CustomerOrder {
     (order.customerId === undefined || typeof order.customerId === "string") &&
     typeof order.listingId === "string" &&
     typeof order.listingTitle === "string" &&
+    (order.restaurantId === undefined || typeof order.restaurantId === "string") &&
+    (order.restaurantName === undefined || typeof order.restaurantName === "string") &&
+    (order.currency === undefined || typeof order.currency === "string") &&
     typeof order.totalCents === "number" &&
     Number.isFinite(order.totalCents) &&
     typeof order.quantity === "number" &&
@@ -186,6 +193,20 @@ export async function listOrdersForCustomer(customerId: string): Promise<Custome
   return sortOrdersByCreatedAtDesc(getMockOrders(customerId));
 }
 
+/**
+ * Reservations for a restaurant (persisted orders only).
+ */
+export async function listOrdersForRestaurant(restaurantId: string): Promise<CustomerOrder[]> {
+  const persisted = await readPersistedOrders();
+  const scoped = persisted.filter((order) => resolveRestaurantIdForOrder(order) === restaurantId);
+  return sortOrdersByCreatedAtDesc(scoped);
+}
+
+export async function getOrderByIdUnscoped(orderId: string): Promise<CustomerOrder | null> {
+  const orders = await readPersistedOrders();
+  return orders.find((order) => order.id === orderId) ?? null;
+}
+
 export async function getOrderById(orderId: string, customerId?: string) {
   const orders = await readPersistedOrders();
   return orders.find((order) => order.id === orderId && (!customerId || order.customerId === customerId)) ?? null;
@@ -195,6 +216,8 @@ export async function createReservedOrder(input: {
   customerId: string;
   listingId: string;
   listingTitle: string;
+  restaurantId: string;
+  restaurantName: string;
   quantity: number;
   totalCents: number;
   pickupWindowStart: string;
@@ -210,6 +233,8 @@ export async function createReservedOrder(input: {
       customerId: input.customerId,
       listingId: input.listingId,
       listingTitle: input.listingTitle,
+      restaurantId: input.restaurantId,
+      restaurantName: input.restaurantName,
       quantity: input.quantity,
       totalCents: input.totalCents,
       pickupWindowStart: input.pickupWindowStart,
@@ -233,6 +258,26 @@ export async function deleteOrder(orderId: string, customerId: string): Promise<
     if (next.length === orders.length) return false;
     await writePersistedOrders(next);
     return true;
+  });
+}
+
+export async function updateOrderFulfillment(
+  orderId: string,
+  next: "picked_up" | "missed_pickup",
+): Promise<CustomerOrder | null> {
+  return runExclusive(async () => {
+    const orders = await readPersistedOrders();
+    const index = orders.findIndex((order) => order.id === orderId);
+    if (index < 0) return null;
+    const current = orders[index];
+    if (current.fulfillmentStatus !== "reserved") return null;
+    const updated: CustomerOrder = {
+      ...current,
+      fulfillmentStatus: next,
+    };
+    orders[index] = updated;
+    await writePersistedOrders(orders);
+    return updated;
   });
 }
 

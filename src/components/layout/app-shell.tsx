@@ -22,6 +22,9 @@ export function AppShell({ children }: AppShellProps) {
             <Link href="/listings" className="hover:text-neutral-900">
               Listings
             </Link>
+            <Link href="/reservations" className="hover:text-neutral-900">
+              Reservations
+            </Link>
             <Link href="/orders" className="hover:text-neutral-900">
               Orders
             </Link>
