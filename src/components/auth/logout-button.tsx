@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/feedback/toast-provider";
 import { useAuth } from "@/components/auth/auth-provider";
 
-export function LogoutButton() {
+type LogoutButtonProps = {
+  compact?: boolean;
+};
+
+export function LogoutButton({ compact }: LogoutButtonProps) {
   const router = useRouter();
   const { pushToast } = useToast();
   const { signOut } = useAuth();
@@ -16,6 +20,7 @@ export function LogoutButton() {
     <Button
       variant="ghost"
       size="sm"
+      className={compact ? "h-8 px-1.5 text-xs" : undefined}
       disabled={isLoading}
       onClick={async () => {
         setIsLoading(true);
@@ -25,7 +30,7 @@ export function LogoutButton() {
         router.refresh();
       }}
     >
-      {isLoading ? "Logging out..." : "Logout"}
+      {isLoading ? (compact ? "…" : "Logging out...") : "Logout"}
     </Button>
   );
 }
