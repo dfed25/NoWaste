@@ -40,6 +40,42 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Test in iOS Simulator or Android emulator (Capacitor)
+
+Use this when you want the real native shell (not only the browser). Full detail is in **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
+
+**Prerequisites**
+
+- **iOS:** Mac with Xcode and iOS Simulator. CocoaPods if the iOS project prompts you.
+- **Android:** Android Studio with an emulator, after a one-time `npm run mobile:android:add` (see below).
+
+**First time only (iOS)**
+
+```bash
+npm install
+npm run mobile:ios:add
+npm run mobile:sync
+```
+
+**First time only (Android)**
+
+```bash
+npm install
+npm run mobile:android:add
+npm run mobile:sync
+```
+
+**Every day — one command (starts Next on port 3000, waits until the app responds, then opens the simulator)**
+
+| Platform | Command |
+|----------|---------|
+| **iOS** | `npm run mobile:ios:dev` (shorthand: `npm run sim:ios`) |
+| **Android** | `npm run mobile:android:dev` (shorthand: `npm run sim:android`) |
+
+If Capacitor or Xcode misbehave, run `npm run mobile:doctor`.
+
+**Physical phone on Wi‑Fi:** keep `npm run dev:mobile` running, then run Capacitor with your computer’s LAN IP (see [CONTRIBUTING.md](./CONTRIBUTING.md#physical-devices)).
+
 ## Quality checks
 
 ```bash
@@ -146,8 +182,10 @@ App runs at `http://localhost:3000`.
 - `npm run dev` - start local dev server (Webpack mode)
 - `npm run dev:mobile` - dev server on `0.0.0.0:3000` (for simulators / LAN devices)
 - `npm run dev:turbo` - start local dev server in Turbopack mode
-- `npm run mobile:ios:dev` / `npm run mobile:android:dev` - start dev server and launch simulator/emulator when port 3000 is ready
-- `npm run ios` / `npm run android` - Capacitor live reload only (run `dev:mobile` separately; see [CONTRIBUTING.md](./CONTRIBUTING.md))
+- `npm run mobile:ios:dev` / `npm run mobile:android:dev` - start dev server, **wait for HTTP on :3000**, then open simulator (180s wait budget for slow compiles)
+- `npm run sim:ios` / `npm run sim:android` - aliases for the above
+- `npm run mobile:doctor` - Capacitor environment check (`cap doctor`)
+- `npm run ios` / `npm run android` - Capacitor only (run `npm run dev:mobile` in another terminal; see [CONTRIBUTING.md](./CONTRIBUTING.md))
 - `npm run mobile:sync` - production build + `cap sync` (all added platforms)
 - `npm run build` - production build
 - `npm run start` - run production server

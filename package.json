@@ -24,8 +24,11 @@
     "mobile:android:run": "cross-env CAP_SERVER_URL=http://localhost:3000 npx cap run android -l --external",
     "android": "npm run mobile:android:run",
     "ios": "npm run mobile:ios:run",
-    "mobile:ios:dev": "concurrently -k -n web,ios -c cyan,magenta \"npm run dev:mobile\" \"wait-on -t 120000 http://127.0.0.1:3000 && npm run mobile:ios:run\"",
-    "mobile:android:dev": "concurrently -k -n web,and -c cyan,green \"npm run dev:mobile\" \"wait-on -t 120000 http://127.0.0.1:3000 && npm run mobile:android:run\""
+    "mobile:ios:dev": "concurrently -k -n web,ios -c cyan,magenta \"npm run dev:mobile\" \"wait-on -t 180000 http-get://127.0.0.1:3000 && npm run mobile:ios:run\"",
+    "mobile:android:dev": "concurrently -k -n web,and -c cyan,green \"npm run dev:mobile\" \"wait-on -t 180000 http-get://127.0.0.1:3000 && npm run mobile:android:run\"",
+    "sim:ios": "npm run mobile:ios:dev",
+    "sim:android": "npm run mobile:android:dev",
+    "mobile:doctor": "npx cap doctor"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.1",
