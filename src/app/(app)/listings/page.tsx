@@ -2,10 +2,9 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
+import { AUTH_COOKIE_NAME } from "@/lib/auth-cookies";
 import { RestaurantListingsManager } from "@/components/listings/restaurant-listings-manager";
 import { Card } from "@/components/ui/card";
-
-const AUTH_COOKIE_NAME = "nw-authenticated";
 
 export default async function ListingsPage() {
   const cookieStore = await cookies();

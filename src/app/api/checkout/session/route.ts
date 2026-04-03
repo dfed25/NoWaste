@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import Stripe from "stripe";
 import { getListingById } from "@/lib/marketplace";
-import { createReservedOrder } from "@/lib/order-store";
+import { createReservedOrder, deleteOrder } from "@/lib/order-store";
+import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
 type CheckoutBody = {
   listingId: string;
@@ -26,10 +27,12 @@ function resolveAppOrigin(request: Request) {
 
 function readUserIdFromCookie(request: Request) {
   try {
-    return cookies().then((cookieStore) => cookieStore.get("nw-user-id")?.value);
+    return cookies().then((cookieStore) => cookieStore.get(CUSTOMER_ID_COOKIE_NAME)?.value);
   } catch {
     const cookieHeader = request.headers.get("cookie") ?? "";
-    const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
+    const match = cookieHeader.match(
+      new RegExp(`(?:^|;\\s*)${CUSTOMER_ID_COOKIE_NAME}=([^;]+)`),
+    );
     if (!match?.[1]) return Promise.resolve(undefined);
     try {
       return Promise.resolve(decodeURIComponent(match[1]));
@@ -83,6 +86,7 @@ export async function POST(request: Request) {
   }
 
   const appUrl = resolveAppOrigin(request);
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   const customerId = (await readUserIdFromCookie(request)) ?? "demo-customer";
   let orderId: string;
   try {
@@ -94,7 +98,7 @@ export async function POST(request: Request) {
       totalCents: listing.priceCents * quantity,
       pickupWindowStart: listing.pickupWindowStart,
       pickupWindowEnd: listing.pickupWindowEnd,
-      paymentStatus: "paid",
+      paymentStatus: stripeSecretKey ? "pending" : "paid",
     });
     orderId = order.id;
   } catch (error) {
@@ -106,7 +110,6 @@ export async function POST(request: Request) {
     listing.id,
   )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}`;
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) {
     if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
@@ -145,13 +148,18 @@ export async function POST(request: Request) {
       ],
       success_url: `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
         listing.id,
-      )}&quantity=${quantity}&session_id={CHECKOUT_SESSION_ID}`,
+      )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
     });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown Stripe API failure";
     console.error("Stripe checkout session create failed:", message);
+    try {
+      await deleteOrder(orderId, customerId);
+    } catch (rollbackError) {
+      console.error("Failed to rollback pending order after Stripe failure", rollbackError);
+    }
     return NextResponse.json(
       { error: "Unable to initialize payment session" },
       { status: 502 },

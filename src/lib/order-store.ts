@@ -6,9 +6,15 @@ import { generatePickupCode, getOrdersForCustomer as getMockOrders } from "@/lib
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+const CANCEL_CUTOFF_MS = 30 * 60 * 1000;
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
+/**
+ * Serialize file writes by chaining each operation onto writeQueue.
+ * Errors from an operation are returned to the caller, while the queue itself
+ * always resolves so subsequent writes are not blocked.
+ */
 function runExclusive<T>(operation: () => Promise<T>) {
   const next = writeQueue.then(operation, operation);
   writeQueue = next.then(
@@ -18,12 +24,47 @@ function runExclusive<T>(operation: () => Promise<T>) {
   return next;
 }
 
+function isOrderStatus(value: unknown): value is CustomerOrder["fulfillmentStatus"] {
+  return (
+    value === "reserved" ||
+    value === "picked_up" ||
+    value === "missed_pickup" ||
+    value === "expired"
+  );
+}
+
+function isPaymentStatus(value: unknown): value is CustomerOrder["paymentStatus"] {
+  return value === "paid" || value === "refunded" || value === "pending";
+}
+
+function isValidOrderRecord(value: unknown): value is CustomerOrder {
+  if (!value || typeof value !== "object") return false;
+  const order = value as Record<string, unknown>;
+  return (
+    typeof order.id === "string" &&
+    order.id.length > 0 &&
+    (order.customerId === undefined || typeof order.customerId === "string") &&
+    typeof order.listingId === "string" &&
+    typeof order.listingTitle === "string" &&
+    typeof order.totalCents === "number" &&
+    Number.isFinite(order.totalCents) &&
+    typeof order.quantity === "number" &&
+    Number.isFinite(order.quantity) &&
+    typeof order.pickupWindowStart === "string" &&
+    typeof order.pickupWindowEnd === "string" &&
+    typeof order.createdAt === "string" &&
+    typeof order.reservationCode === "string" &&
+    isOrderStatus(order.fulfillmentStatus) &&
+    isPaymentStatus(order.paymentStatus)
+  );
+}
+
 async function readPersistedOrders(): Promise<CustomerOrder[]> {
   try {
     const raw = await readFile(ORDERS_FILE, "utf8");
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((order): order is CustomerOrder => Boolean(order && typeof order === "object"));
+    return parsed.filter((order): order is CustomerOrder => isValidOrderRecord(order));
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") return [];
@@ -45,6 +86,10 @@ function sortOrdersByCreatedAtDesc(orders: CustomerOrder[]) {
   });
 }
 
+/**
+ * Returns orders sorted by newest first, using mock data only until the first
+ * persisted order exists for the customer.
+ */
 export async function listOrdersForCustomer(customerId: string): Promise<CustomerOrder[]> {
   const persisted = await readPersistedOrders();
   const scoped = persisted.filter((order) => order.customerId === customerId);
@@ -52,6 +97,11 @@ export async function listOrdersForCustomer(customerId: string): Promise<Custome
     return sortOrdersByCreatedAtDesc(scoped);
   }
   return sortOrdersByCreatedAtDesc(getMockOrders(customerId));
+}
+
+export async function getOrderById(orderId: string, customerId: string) {
+  const orders = await readPersistedOrders();
+  return orders.find((order) => order.id === orderId && order.customerId === customerId) ?? null;
 }
 
 export async function createReservedOrder(input: {
@@ -66,7 +116,7 @@ export async function createReservedOrder(input: {
 }) {
   return runExclusive(async () => {
     const orders = await readPersistedOrders();
-    const id = `ord_${randomUUID().slice(0, 12)}`;
+    const id = `ord_${randomUUID()}`;
     const reservationCode = generatePickupCode(id);
     const created: CustomerOrder = {
       id,
@@ -87,6 +137,18 @@ export async function createReservedOrder(input: {
   });
 }
 
+export async function deleteOrder(orderId: string, customerId: string): Promise<boolean> {
+  return runExclusive(async () => {
+    const orders = await readPersistedOrders();
+    const next = orders.filter(
+      (order) => !(order.id === orderId && order.customerId === customerId),
+    );
+    if (next.length === orders.length) return false;
+    await writePersistedOrders(next);
+    return true;
+  });
+}
+
 export async function cancelOrder(orderId: string, customerId: string) {
   return runExclusive(async () => {
     const orders = await readPersistedOrders();
@@ -94,6 +156,9 @@ export async function cancelOrder(orderId: string, customerId: string) {
     if (index < 0) return null;
     const order = orders[index];
     if (order.fulfillmentStatus !== "reserved") return null;
+    const pickupTs = new Date(order.pickupWindowStart).getTime();
+    if (!Number.isFinite(pickupTs)) return null;
+    if (pickupTs - Date.now() <= CANCEL_CUTOFF_MS) return null;
 
     const canceled: CustomerOrder = {
       ...order,

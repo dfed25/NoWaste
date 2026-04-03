@@ -31,16 +31,21 @@ describe("order-store", () => {
   });
 
   it("cancels only reserved orders for the same customer", async () => {
+    const pickupStart = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const pickupEnd = new Date(Date.now() + 3 * 60 * 60 * 1000);
     const created = await createReservedOrder({
       customerId: "cust_2",
       listingId: "l2",
       listingTitle: "Cancel Listing",
       quantity: 1,
       totalCents: 700,
-      pickupWindowStart: "2026-04-02T20:00:00.000Z",
-      pickupWindowEnd: "2026-04-02T21:00:00.000Z",
+      pickupWindowStart: pickupStart.toISOString(),
+      pickupWindowEnd: pickupEnd.toISOString(),
       paymentStatus: "paid",
     });
+
+    const wrongCustomerResult = await cancelOrder(created.id, "cust_other");
+    expect(wrongCustomerResult).toBeNull();
 
     const canceled = await cancelOrder(created.id, "cust_2");
     expect(canceled?.fulfillmentStatus).toBe("expired");

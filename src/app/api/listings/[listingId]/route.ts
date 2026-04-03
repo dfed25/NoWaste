@@ -1,11 +1,7 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 import { deleteManagedListing, updateManagedListing } from "@/lib/marketplace-store";
-
-const AUTH_COOKIE_NAME = "nw-authenticated";
-const RESTAURANT_ID_COOKIE_NAME = "nw-restaurant-id";
+import { resolveListingAuthContext } from "@/lib/listing-auth-context";
 
 const patchSchema = z
   .object({
@@ -25,18 +21,20 @@ const patchSchema = z
   });
 
 async function resolveAuthContext() {
-  const cookieStore = await cookies();
-  return {
-    isAuthenticated: cookieStore.get(AUTH_COOKIE_NAME)?.value === "1",
-    role: cookieStore.get(ADMIN_ROLE_COOKIE)?.value,
-    scopedRestaurantId: cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value,
-  };
+  return resolveListingAuthContext();
 }
 
 function mapActionToStatus(action: "pause" | "activate" | "archive") {
   if (action === "pause") return "paused" as const;
   if (action === "archive") return "archived" as const;
   return "active" as const;
+}
+
+function toIsoOrUndefined(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
 }
 
 export async function PATCH(
@@ -75,13 +73,9 @@ export async function PATCH(
     priceCents: payload.discountedPriceCents,
     quantityTotal: payload.quantityTotal,
     quantityRemaining: payload.quantityRemaining,
-    pickupWindowStart: payload.pickupWindowStart
-      ? new Date(payload.pickupWindowStart).toISOString()
-      : undefined,
-    pickupWindowEnd: payload.pickupWindowEnd ? new Date(payload.pickupWindowEnd).toISOString() : undefined,
-    reservationCutoffAt: payload.reservationCutoffAt
-      ? new Date(payload.reservationCutoffAt).toISOString()
-      : undefined,
+    pickupWindowStart: toIsoOrUndefined(payload.pickupWindowStart),
+    pickupWindowEnd: toIsoOrUndefined(payload.pickupWindowEnd),
+    reservationCutoffAt: toIsoOrUndefined(payload.reservationCutoffAt),
   };
 
   try {

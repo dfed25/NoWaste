@@ -1,36 +1,15 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 import { restaurants } from "@/lib/marketplace";
 import { listManagedListings, saveListing } from "@/lib/marketplace-store";
+import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
 import { listingSchema } from "@/lib/validation";
-
-const AUTH_COOKIE_NAME = "nw-authenticated";
-const RESTAURANT_ID_COOKIE_NAME = "nw-restaurant-id";
-
-type AuthContext = {
-  isAuthenticated: boolean;
-  role: string | undefined;
-  scopedRestaurantId: string | undefined;
-};
 
 function canManageListings(role: string | undefined) {
   return role === "restaurant_staff" || role === "admin";
 }
 
-function resolveContext() {
-  return cookies().then((cookieStore) => {
-    const context: AuthContext = {
-      isAuthenticated: cookieStore.get(AUTH_COOKIE_NAME)?.value === "1",
-      role: cookieStore.get(ADMIN_ROLE_COOKIE)?.value,
-      scopedRestaurantId: cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value,
-    };
-    return context;
-  });
-}
-
 function resolveTargetRestaurantId(
-  context: AuthContext,
+  context: ListingAuthContext,
   requestedRestaurantId?: string,
 ): { ok: true; restaurantId: string } | { ok: false; status: number; error: string } {
   if (context.role === "restaurant_staff" && !context.scopedRestaurantId) {
@@ -60,12 +39,15 @@ function resolveTargetRestaurantId(
 }
 
 export async function GET() {
-  const context = await resolveContext();
+  const context = await resolveListingAuthContext();
   if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!canManageListings(context.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (context.role === "restaurant_staff" && !context.scopedRestaurantId) {
+    return NextResponse.json({ error: "Missing restaurant scope" }, { status: 403 });
   }
 
   try {
@@ -80,7 +62,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const context = await resolveContext();
+  const context = await resolveListingAuthContext();
 
   if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

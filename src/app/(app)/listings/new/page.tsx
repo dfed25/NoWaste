@@ -3,8 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
-
-const AUTH_COOKIE_NAME = "nw-authenticated";
+import { AUTH_COOKIE_NAME } from "@/lib/auth-cookies";
 
 export default async function NewListingPage() {
   const cookieStore = await cookies();

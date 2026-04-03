@@ -120,7 +120,7 @@ function normalizeManagedListing(value: unknown): ManagedListing | null {
   const pickupWindowEnd = asIsoDate(record.pickupWindowEnd);
   const distanceMiles = asPositiveNumber(record.distanceMiles) ?? 0.1;
   const priceCents = asNonNegativeNumber(record.priceCents) ?? 0;
-  const quantityRemaining = asPositiveNumber(record.quantityRemaining) ?? 1;
+  const quantityRemaining = asNonNegativeNumber(record.quantityRemaining) ?? 0;
   if (
     !id ||
     !title ||
@@ -187,7 +187,7 @@ export async function saveListing(input: {
   restaurantId: string;
   restaurantName: string;
   distanceMiles: number;
-}): Promise<ListingItem> {
+}): Promise<ManagedListing> {
   return runExclusive(async () => {
     const created = buildListing(input);
     await persistCreatedListing(created);

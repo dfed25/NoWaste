@@ -412,7 +412,15 @@ export function RestaurantListingsManager() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => void runMutation(listing.id, { method: "DELETE" })}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Delete "${listing.title}"? This action cannot be undone.`,
+                          )
+                        ) {
+                          void runMutation(listing.id, { method: "DELETE" });
+                        }
+                      }}
                       disabled={isMutating}
                     >
                       Delete

@@ -1,18 +1,34 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cancelOrder } from "@/lib/order-store";
+import { cancelOrder, getOrderById } from "@/lib/order-store";
+import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
-const CUSTOMER_COOKIE = "nw-user-id";
+const CANCEL_CUTOFF_MS = 30 * 60 * 1000;
 
 export async function POST(
   _request: Request,
   context: { params: Promise<{ orderId: string }> },
 ) {
   const cookieStore = await cookies();
-  const customerId = cookieStore.get(CUSTOMER_COOKIE)?.value ?? "demo-customer";
+  const customerId = cookieStore.get(CUSTOMER_ID_COOKIE_NAME)?.value ?? "demo-customer";
   const { orderId } = await context.params;
 
   try {
+    const order = await getOrderById(orderId, customerId);
+    if (!order) {
+      return NextResponse.json(
+        { error: "Order not found or cannot be canceled" },
+        { status: 400 },
+      );
+    }
+    const pickupStartMs = new Date(order.pickupWindowStart).getTime();
+    if (!Number.isFinite(pickupStartMs) || pickupStartMs - Date.now() <= CANCEL_CUTOFF_MS) {
+      return NextResponse.json(
+        { error: "Order cannot be canceled within 30 minutes of pickup" },
+        { status: 400 },
+      );
+    }
+
     const canceled = await cancelOrder(orderId, customerId);
     if (!canceled) {
       return NextResponse.json(

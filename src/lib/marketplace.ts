@@ -48,7 +48,7 @@ export type CustomerOrder = {
   pickupWindowEnd: string;
   createdAt: string;
   fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired";
-  paymentStatus: "paid" | "refunded";
+  paymentStatus: "paid" | "refunded" | "pending";
   reservationCode: string;
 };
 
