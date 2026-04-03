@@ -5,7 +5,9 @@ const serverUrl = process.env.CAP_SERVER_URL;
 const config: CapacitorConfig = {
   appId: "com.nowaste.app",
   appName: "NoWaste",
-  webDir: ".next",
+  // Capacitor requires webDir to contain index.html. Next's `.next` output does not.
+  // Live dev uses server.url (see CAP_SERVER_URL); this folder is the sync'd shell.
+  webDir: "www",
   ios: {
     contentInset: "automatic",
   },
