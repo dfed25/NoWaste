@@ -1,45 +1,24 @@
-import { open, mkdir, readFile, rename, rm } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { createRunExclusive } from "@/lib/file-queue";
-import {
-  createDefaultNotificationPreferences,
-  type NotificationPreference,
-} from "@/lib/notifications";
+import { createDefaultNotificationPreferences } from "@/lib/notifications";
+import type { NotificationPreferenceInput } from "@/lib/validation";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const PREFERENCES_FILE = path.join(DATA_DIR, "notification-preferences.json");
-
-// NOTE: This in-memory queue serializes writes within a single process only.
-// Production multi-instance deployments should use database-backed persistence.
 const runExclusive = createRunExclusive();
-let didWarnSingleInstanceStore = false;
 
-function assertSingleInstanceStore() {
-  if (process.env.NOWASTE_MULTI_INSTANCE === "1") {
-    throw new Error(
-      "notification-preferences-store is single-process only. Use shared DB/KV persistence in multi-instance mode.",
-    );
-  }
-
-  if (!didWarnSingleInstanceStore && process.env.NODE_ENV === "production") {
-    didWarnSingleInstanceStore = true;
-    console.warn(
-      "notification-preferences-store uses process-local locking only. Avoid multi-instance deployments without shared persistence.",
-    );
-  }
-}
-
-type PreferencesMap = Record<string, NotificationPreference & { updatedAt: string }>;
+type PreferencesMap = Record<string, NotificationPreferenceInput & { updatedAt: string }>;
 
 async function readPreferences(): Promise<PreferencesMap> {
   try {
     const raw = await readFile(PREFERENCES_FILE, "utf8");
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
       return parsed as PreferencesMap;
     } catch {
-      console.error(`Malformed JSON in ${PREFERENCES_FILE}; returning empty preferences map`);
+      console.error(`Malformed JSON in ${PREFERENCES_FILE}, returning empty preferences`);
       return {};
     }
   } catch (error) {
@@ -52,33 +31,30 @@ async function readPreferences(): Promise<PreferencesMap> {
 
 async function writePreferences(next: PreferencesMap) {
   await mkdir(DATA_DIR, { recursive: true });
-
   const tempFile = `${PREFERENCES_FILE}.tmp-${process.pid}`;
-  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  const payload = JSON.stringify(next, null, 2);
+  let handle: Awaited<ReturnType<typeof open>> | null = null;
 
   try {
     handle = await open(tempFile, "w");
-    await handle.writeFile(JSON.stringify(next, null, 2), "utf8");
+    await handle.writeFile(payload, "utf8");
     await handle.sync();
     await handle.close();
-    handle = undefined;
-
+    handle = null;
     await rename(tempFile, PREFERENCES_FILE);
-  } catch (error) {
+  } finally {
     if (handle) {
-      await handle.close();
+      await handle.close().catch(() => undefined);
     }
-    await rm(tempFile, { force: true });
-    throw error;
+    await rm(tempFile, { force: true }).catch(() => undefined);
   }
 }
 
-export async function getNotificationPreferences(userId: string): Promise<NotificationPreference> {
+export async function getNotificationPreferences(userId: string): Promise<NotificationPreferenceInput> {
   return runExclusive(async () => {
-    assertSingleInstanceStore();
     const map = await readPreferences();
-    const persisted = map[userId];
-    if (!persisted) {
+    const current = map[userId];
+    if (!current) {
       return {
         ...createDefaultNotificationPreferences(),
         userId,
@@ -87,34 +63,32 @@ export async function getNotificationPreferences(userId: string): Promise<Notifi
 
     return {
       userId,
-      email: Boolean(persisted.email),
-      sms: Boolean(persisted.sms),
-      events: Array.isArray(persisted.events) ? persisted.events : [],
+      email: Boolean(current.email),
+      sms: Boolean(current.sms),
+      events: Array.isArray(current.events) ? current.events : [],
     };
   });
 }
 
 export async function saveNotificationPreferences(
   userId: string,
-  input: NotificationPreference,
-): Promise<NotificationPreference> {
+  preference: NotificationPreferenceInput,
+): Promise<NotificationPreferenceInput> {
   return runExclusive(async () => {
-    assertSingleInstanceStore();
     const map = await readPreferences();
-    map[userId] = {
+    const next: NotificationPreferenceInput = {
       userId,
-      email: input.email,
-      sms: input.sms,
-      events: [...input.events],
+      email: preference.email,
+      sms: preference.sms,
+      events: preference.events,
+    };
+
+    map[userId] = {
+      ...next,
       updatedAt: new Date().toISOString(),
     };
 
     await writePreferences(map);
-    return {
-      userId,
-      email: input.email,
-      sms: input.sms,
-      events: [...input.events],
-    };
+    return next;
   });
 }
