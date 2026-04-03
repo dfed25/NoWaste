@@ -123,15 +123,15 @@ npm run sim:android
 
 ```bash
 # macOS / Linux — iOS device (Xcode)
-CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run ios -l --external
+CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run ios -l --host 192.168.1.10 --port 3000
 
 # macOS / Linux — Android device
-CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run android -l --external
+CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run android -l --host 192.168.1.10 --port 3000
 ```
 
 ```powershell
 # Windows PowerShell (Android — iOS requires macOS + Xcode)
-$env:CAP_SERVER_URL="http://192.168.1.10:3000"; npx cap run android -l --external
+$env:CAP_SERVER_URL="http://192.168.1.10:3000"; npx cap run android -l --host 192.168.1.10 --port 3000
 ```
 
 Phone and computer must be on the **same Wi‑Fi**. For iOS, if you use `http://`, ensure `capacitor.config.ts` keeps **cleartext** enabled for that URL (already the case for `http://` server URLs).
