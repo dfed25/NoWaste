@@ -14,7 +14,7 @@ import {
 import { notificationPreferenceSchema } from "@/lib/validation";
 
 type ResolvedCustomer = {
-  customerId?: string;
+  customerId: string;
   encodedCookieValue?: string;
 };
 
@@ -63,31 +63,19 @@ function withCustomerCookie(response: NextResponse, encodedCookieValue?: string)
 
 export async function GET(request: Request) {
   const resolved = await resolveCustomer(request);
-  if (!resolved.customerId) {
-    return NextResponse.json(
-      { error: "Notification preferences are temporarily unavailable" },
-      { status: 503 },
-    );
-  }
 
   try {
     const preference = await getNotificationPreferences(resolved.customerId);
     const response = NextResponse.json({ preference }, { status: 200 });
     return withCustomerCookie(response, resolved.encodedCookieValue);
   } catch (error) {
-    console.error("Failed to fetch notification preferences", { error });
+    console.error("Failed to fetch notification preferences", error);
     return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
   const resolved = await resolveCustomer(request);
-  if (!resolved.customerId) {
-    return NextResponse.json(
-      { error: "Notification preferences are temporarily unavailable" },
-      { status: 503 },
-    );
-  }
 
   let body: unknown;
   try {
@@ -116,7 +104,7 @@ export async function PATCH(request: Request) {
     const response = NextResponse.json({ ok: true, preference }, { status: 200 });
     return withCustomerCookie(response, resolved.encodedCookieValue);
   } catch (error) {
-    console.error("Failed to save notification preferences", { error });
+    console.error("Failed to save notification preferences", error);
     return NextResponse.json({ error: "Failed to save preferences" }, { status: 500 });
   }
 }

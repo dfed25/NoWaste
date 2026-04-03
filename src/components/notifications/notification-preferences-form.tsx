@@ -60,7 +60,11 @@ export function NotificationPreferencesForm() {
           throw new Error(payload.error ?? "Could not load notification settings");
         }
 
-        if (!mounted || !payload.preference) return;
+        if (!mounted) return;
+        if (!payload.preference) {
+          console.warn("Notification preferences payload missing preference; using defaults");
+          return;
+        }
 
         setEmail(payload.preference.email);
         setSms(payload.preference.sms);
@@ -153,7 +157,8 @@ export function NotificationPreferencesForm() {
 
   if (isLoading) {
     return (
-      <Card className="space-y-2">
+      <Card className="space-y-2" role="status" aria-busy="true" aria-live="polite">
+        <span className="sr-only">Loading notification settings</span>
         <p className="text-sm text-neutral-600">Loading notification settings...</p>
       </Card>
     );
