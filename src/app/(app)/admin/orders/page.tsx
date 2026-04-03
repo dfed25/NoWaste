@@ -3,7 +3,7 @@ import { getAdminTables } from "@/lib/admin-reporting";
 import { requireAdminPageAccess } from "@/lib/admin-guard";
 
 export default async function AdminOrdersPage() {
-  await requireAdminPageAccess();
+  await requireAdminPageAccess("/admin/orders");
 
   const { orders } = getAdminTables();
   return (

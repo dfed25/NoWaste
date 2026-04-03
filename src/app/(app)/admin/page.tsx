@@ -12,7 +12,7 @@ const links = [
 ];
 
 export default async function AdminPanelPage() {
-  await requireAdminPageAccess();
+  await requireAdminPageAccess("/admin");
 
   return (
     <section className="space-y-4">

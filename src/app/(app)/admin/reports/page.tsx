@@ -4,7 +4,7 @@ import { getReportingMetrics } from "@/lib/admin-reporting";
 import { requireAdminPageAccess } from "@/lib/admin-guard";
 
 export default async function AdminReportsPage() {
-  await requireAdminPageAccess();
+  await requireAdminPageAccess("/admin/reports");
 
   const metrics = getReportingMetrics();
 
