@@ -1,50 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
-import { createCustomerId } from "@/lib/customer-id-cookie";
 import {
   getNotificationPreferences,
   saveNotificationPreferences,
 } from "@/lib/notification-preferences-store";
 import { notificationPreferenceSchema } from "@/lib/validation";
-
-function withCustomerCookie(response: NextResponse, customerId: string, shouldSet: boolean) {
-  if (!shouldSet) return response;
-
-  response.cookies.set(CUSTOMER_ID_COOKIE_NAME, customerId, {
-    path: "/",
-    sameSite: "lax",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  return response;
-}
-
-async function resolveCustomer(request: Request): Promise<{ customerId: string; shouldSetCookie: boolean }> {
-  try {
-    const cookieStore = await cookies();
-    const fromCookie = cookieStore.get(CUSTOMER_ID_COOKIE_NAME)?.value;
-    if (fromCookie) return { customerId: fromCookie, shouldSetCookie: false };
-  } catch {
-    // cookies() can fail in direct unit tests.
-  }
-
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${CUSTOMER_ID_COOKIE_NAME}=([^;]+)`));
-  if (match?.[1]) {
-    try {
-      return { customerId: decodeURIComponent(match[1]), shouldSetCookie: false };
-    } catch {
-      return { customerId: match[1], shouldSetCookie: false };
-    }
-  }
-
-  return {
-    customerId: createCustomerId(),
-    shouldSetCookie: true,
-  };
-}
+import { resolveCustomer, withCustomerCookie } from "@/lib/customer-cookie-utils";
 
 export async function GET(request: Request) {
   let resolved: { customerId: string; shouldSetCookie: boolean };

@@ -132,8 +132,11 @@ export async function markNotificationReadForUser(
 ): Promise<boolean> {
   return runExclusive(async () => {
     const map = await readNotifications();
+    if (!Object.prototype.hasOwnProperty.call(map, notificationId)) {
+      return false;
+    }
     const notification = map[notificationId];
-    if (!notification || notification.userId !== userId || notification.dismissedAt) {
+    if (notification.userId !== userId || notification.dismissedAt) {
       return false;
     }
 
@@ -150,8 +153,11 @@ export async function markNotificationUnreadForUser(
 ): Promise<boolean> {
   return runExclusive(async () => {
     const map = await readNotifications();
+    if (!Object.prototype.hasOwnProperty.call(map, notificationId)) {
+      return false;
+    }
     const notification = map[notificationId];
-    if (!notification || notification.userId !== userId || notification.dismissedAt) {
+    if (notification.userId !== userId || notification.dismissedAt) {
       return false;
     }
 
@@ -168,8 +174,11 @@ export async function dismissNotificationForUser(
 ): Promise<boolean> {
   return runExclusive(async () => {
     const map = await readNotifications();
+    if (!Object.prototype.hasOwnProperty.call(map, notificationId)) {
+      return false;
+    }
     const notification = map[notificationId];
-    if (!notification || notification.userId !== userId || notification.dismissedAt) {
+    if (notification.userId !== userId || notification.dismissedAt) {
       return false;
     }
 
