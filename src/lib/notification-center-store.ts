@@ -57,29 +57,35 @@ async function writeNotifications(next: Persisted) {
   }
 }
 
-function compactDismissedNotifications(map: Persisted) {
+function compactDismissedNotifications(map: Persisted): boolean {
   const retentionMs = DISMISSED_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - retentionMs;
+  let changed = false;
 
   for (const [id, notification] of Object.entries(map)) {
     if (!notification.dismissedAt) continue;
     const dismissedTs = new Date(notification.dismissedAt).getTime();
     if (!Number.isFinite(dismissedTs) || dismissedTs < cutoff) {
       delete map[id];
+      changed = true;
     }
   }
+
+  return changed;
 }
 
 export async function listNotificationsForUser(userId: string): Promise<InboxNotification[]> {
   return runExclusive(async () => {
     const map = await readNotifications();
-    compactDismissedNotifications(map);
+    const compacted = compactDismissedNotifications(map);
 
     const notifications = Object.values(map)
       .filter((item) => item.userId === userId && !item.dismissedAt)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    await writeNotifications(map);
+    if (compacted) {
+      await writeNotifications(map);
+    }
     return notifications;
   });
 }

@@ -41,12 +41,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Malformed JSON payload" }, { status: 400 });
   }
 
-  const current = await getNotificationPreferences(resolved.customerId);
-  const mergedCandidate = {
-    ...current,
-    ...(body && typeof body === "object" ? (body as Record<string, unknown>) : {}),
-    userId: resolved.customerId,
-  };
+  let mergedCandidate: Record<string, unknown>;
+  try {
+    const current = await getNotificationPreferences(resolved.customerId);
+    mergedCandidate = {
+      ...current,
+      ...(body && typeof body === "object" ? (body as Record<string, unknown>) : {}),
+      userId: resolved.customerId,
+    };
+  } catch (error) {
+    console.error("Failed to fetch current notification preferences", error);
+    return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
+  }
 
   const parsed = notificationPreferenceSchema.safeParse(mergedCandidate);
   if (!parsed.success) {

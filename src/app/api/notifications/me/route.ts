@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import {
   clearReadNotificationsForUser,
   dismissNotificationForUser,
@@ -9,16 +10,26 @@ import {
 } from "@/lib/notification-center-store";
 import { resolveCustomer, withCustomerCookie } from "@/lib/customer-cookie-utils";
 
-type NotificationsPatchBody = {
-  notificationId?: string;
-  markAll?: boolean;
-  markUnread?: boolean;
-  dismiss?: boolean;
-  clearRead?: boolean;
-};
+const notificationsPatchSchema = z
+  .object({
+    notificationId: z.string().optional(),
+    markAll: z.boolean().optional(),
+    markUnread: z.boolean().optional(),
+    dismiss: z.boolean().optional(),
+    clearRead: z.boolean().optional(),
+  })
+  .strict();
+
+type NotificationsPatchBody = z.infer<typeof notificationsPatchSchema>;
 
 export async function GET(request: Request) {
-  const resolved = await resolveCustomer(request);
+  let resolved: { customerId: string; shouldSetCookie: boolean };
+  try {
+    resolved = await resolveCustomer(request);
+  } catch (error) {
+    console.error("Failed resolving customer for notifications", error);
+    return NextResponse.json({ error: "Account is temporarily unavailable" }, { status: 503 });
+  }
 
   try {
     const notifications = await listNotificationsForUser(resolved.customerId);
@@ -45,12 +56,19 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const resolved = await resolveCustomer(request);
 
-  let body: NotificationsPatchBody;
+  let rawBody: unknown;
   try {
-    body = (await request.json()) as NotificationsPatchBody;
+    rawBody = await request.json();
   } catch {
     return NextResponse.json({ error: "Malformed JSON payload" }, { status: 400 });
   }
+
+  const parsedBody = notificationsPatchSchema.safeParse(rawBody);
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const body: NotificationsPatchBody = parsedBody.data;
 
   const explicitActionCount = [
     Boolean(body.markAll),
