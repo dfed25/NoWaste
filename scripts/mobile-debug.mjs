@@ -15,6 +15,7 @@ const iosConfigCandidates = [
   join(root, "ios/App/capacitor.config.json"),
 ];
 
+/** @returns {string | null} Path to synced `capacitor.config.json` under ios/, if present. */
 function findIosCapConfig() {
   for (const p of iosConfigCandidates) {
     if (existsSync(p)) return p;
@@ -22,6 +23,10 @@ function findIosCapConfig() {
   return null;
 }
 
+/**
+ * @param {string} url
+ * @returns {Promise<{ ok: true, status: number } | { ok: false, error: string }>}
+ */
 function probe(url) {
   return new Promise((resolve) => {
     const req = http.get(url, (res) => {
@@ -47,6 +52,9 @@ try {
 console.log("NoWaste — mobile / Xcode debug\n");
 console.log("Effective dev port (MOBILE_DEV_PORT / MOBILE_PORT):", port);
 
+/** When set, matches the URL the native WebView was last synced to load. */
+let syncedServerUrl = null;
+
 const capPath = findIosCapConfig();
 if (!capPath) {
   console.log("\nNo ios/ …/capacitor.config.json found.");
@@ -56,6 +64,7 @@ if (!capPath) {
   try {
     const json = JSON.parse(readFileSync(capPath, "utf8"));
     if (json.server?.url) {
+      syncedServerUrl = String(json.server.url).trim();
       console.log("  server.url (WebView loads this):", json.server.url);
       console.log("  cleartext:", json.server.cleartext);
     } else {
@@ -66,9 +75,15 @@ if (!capPath) {
   }
 }
 
-const home = `http://127.0.0.1:${port}/`;
-process.stdout.write(`\nProbing Next at ${home} … `);
-const r = await probe(home);
+const fallback = `http://127.0.0.1:${port}/`;
+const probeTarget =
+  syncedServerUrl && syncedServerUrl.length > 0
+    ? syncedServerUrl.endsWith("/")
+      ? syncedServerUrl
+      : `${syncedServerUrl}/`
+    : fallback;
+process.stdout.write(`\nProbing Next at ${probeTarget} … `);
+const r = await probe(probeTarget);
 if (r.ok) {
   console.log(`OK (HTTP ${r.status})`);
 } else {
