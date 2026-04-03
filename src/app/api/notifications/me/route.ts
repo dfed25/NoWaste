@@ -80,6 +80,20 @@ export async function PATCH(request: Request) {
 
   const parsed = parseReadBody(body);
 
+  const explicitActionCount = [
+    parsed.markAll,
+    parsed.clearRead,
+    parsed.dismiss,
+    parsed.markUnread,
+  ].filter(Boolean).length;
+
+  if (explicitActionCount > 1) {
+    return NextResponse.json(
+      { error: "Specify exactly one notification action" },
+      { status: 400 },
+    );
+  }
+
   try {
     if (parsed.markAll) {
       const updatedCount = await markAllNotificationsReadForUser(customerId);

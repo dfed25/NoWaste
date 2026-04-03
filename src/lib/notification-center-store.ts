@@ -5,6 +5,7 @@ import { createRunExclusive } from "@/lib/file-queue";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
+const DISMISSED_RETENTION_DAYS = 14;
 const runExclusive = createRunExclusive();
 
 export type InAppNotification = {
@@ -25,6 +26,18 @@ type NotificationInput = {
   linkHref?: string;
 };
 
+
+function compactDismissedNotifications(items: InAppNotification[]): InAppNotification[] {
+  const cutoffMs = Date.now() - DISMISSED_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+  return items.filter((item) => {
+    if (!item.dismissedAt) return true;
+    const dismissedAtMs = new Date(item.dismissedAt).getTime();
+    if (Number.isNaN(dismissedAtMs)) return true;
+    return dismissedAtMs >= cutoffMs;
+  });
+}
+
 async function readPersistedNotifications(): Promise<InAppNotification[]> {
   try {
     const raw = await readFile(NOTIFICATIONS_FILE, "utf8");
@@ -40,7 +53,8 @@ async function readPersistedNotifications(): Promise<InAppNotification[]> {
 
 async function writePersistedNotifications(next: InAppNotification[]) {
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(NOTIFICATIONS_FILE, JSON.stringify(next, null, 2), "utf8");
+  const compacted = compactDismissedNotifications(next);
+  await writeFile(NOTIFICATIONS_FILE, JSON.stringify(compacted, null, 2), "utf8");
 }
 
 export async function createInAppNotification(input: NotificationInput): Promise<InAppNotification> {
@@ -180,5 +194,16 @@ export async function clearReadNotificationsForUser(userId: string): Promise<num
     }
 
     return changed;
+  });
+}
+
+
+export async function compactNotificationStore() {
+  return runExclusive(async () => {
+    const current = await readPersistedNotifications();
+    const compacted = compactDismissedNotifications(current);
+    if (compacted.length === current.length) return 0;
+    await writePersistedNotifications(compacted);
+    return current.length - compacted.length;
   });
 }

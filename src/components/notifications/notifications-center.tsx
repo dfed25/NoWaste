@@ -34,6 +34,7 @@ export function NotificationsCenter() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
   const [query, setQuery] = useState("");
 
@@ -53,6 +54,7 @@ export function NotificationsCenter() {
       setReadCount(typeof payload.readCount === "number" ? payload.readCount : 0);
       setTotalCount(typeof payload.totalCount === "number" ? payload.totalCount : items.length);
       setError(null);
+      setMutationError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load notifications");
     } finally {
@@ -84,6 +86,8 @@ export function NotificationsCenter() {
 
   async function mutateNotifications(body: Record<string, unknown>) {
     setIsSubmitting(true);
+    setMutationError(null);
+
     try {
       const response = await fetch("/api/notifications/me", {
         method: "PATCH",
@@ -95,12 +99,20 @@ export function NotificationsCenter() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Could not update notification");
+
+        // Stale item actions can legitimately return 404 from another tab/session.
+        if (response.status === 404) {
+          await refreshNotifications();
+          return;
+        }
+
+        setMutationError(payload.error ?? "Could not update notifications");
+        return;
       }
 
       await refreshNotifications();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update notifications");
+      setMutationError(err instanceof Error ? err.message : "Could not update notifications");
     } finally {
       setIsSubmitting(false);
     }
@@ -156,6 +168,7 @@ export function NotificationsCenter() {
               type="button"
               size="sm"
               variant={filter === "all" ? "primary" : "secondary"}
+              aria-pressed={filter === "all"}
               onClick={() => setFilter("all")}
             >
               All
@@ -164,6 +177,7 @@ export function NotificationsCenter() {
               type="button"
               size="sm"
               variant={filter === "unread" ? "primary" : "secondary"}
+              aria-pressed={filter === "unread"}
               onClick={() => setFilter("unread")}
             >
               Unread
@@ -172,6 +186,7 @@ export function NotificationsCenter() {
               type="button"
               size="sm"
               variant={filter === "read" ? "primary" : "secondary"}
+              aria-pressed={filter === "read"}
               onClick={() => setFilter("read")}
             >
               Read
@@ -212,6 +227,13 @@ export function NotificationsCenter() {
           />
         </label>
       </Card>
+
+      {mutationError ? (
+        <Card className="border-amber-200 bg-amber-50 text-amber-900">
+          <p className="text-sm font-medium">Some actions could not be completed.</p>
+          <p className="mt-1 text-sm">{mutationError}</p>
+        </Card>
+      ) : null}
 
       {filtered.length === 0 ? (
         <EmptyState

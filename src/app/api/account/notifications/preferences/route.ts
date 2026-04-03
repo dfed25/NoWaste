@@ -112,19 +112,22 @@ export async function PATCH(request: Request) {
   const payload =
     body && typeof body === "object" ? (body as Record<string, unknown>) : {};
 
-  const parsed = notificationPreferenceSchema.safeParse({
-    ...payload,
-    userId: resolved.customerId,
-  });
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Invalid notification preferences" },
-      { status: 400 },
-    );
-  }
-
   try {
+    const currentPreference = await getNotificationPreferences(resolved.customerId);
+
+    const parsed = notificationPreferenceSchema.safeParse({
+      ...currentPreference,
+      ...payload,
+      userId: resolved.customerId,
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid notification preferences" },
+        { status: 400 },
+      );
+    }
+
     const preference = await saveNotificationPreferences(resolved.customerId, parsed.data);
     const response = NextResponse.json({ ok: true, preference }, { status: 200 });
     return withCustomerCookie(response, resolved.encodedCookieValue);
