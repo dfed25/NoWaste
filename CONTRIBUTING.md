@@ -17,6 +17,8 @@ NoWaste is a **Next.js web app** wrapped with **Capacitor** for native shells. I
 
 **Port for all mobile scripts:** set **`MOBILE_DEV_PORT`** or **`MOBILE_PORT`** (default **3000**) so `dev:mobile`, `npm run ios` / `android`, and `sim:*` stay aligned. Example: `MOBILE_DEV_PORT=3001 npm run sim:ios`.
 
+**Capacitor `webDir`:** the repo uses **`www/`** with a minimal **`index.html`** because Capacitor requires that file at the sync root; Next’s **`.next`** build output does not provide it. In development, **`CAP_SERVER_URL`** / **`server.url`** loads the Next app from your dev server inside the WebView.
+
 ### Web browser (all platforms—easiest)
 
 ```bash
