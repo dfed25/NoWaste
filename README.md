@@ -65,16 +65,18 @@ npm run mobile:android:add
 npm run mobile:sync
 ```
 
-**Every day — one command (starts Next on port 3000, waits until the app responds, then opens the simulator)**
+**Every day — one command** (starts Next on **`MOBILE_DEV_PORT`** / **`MOBILE_PORT`**, default **3000**, waits until that URL responds, then opens the simulator)
 
 | Platform | Command |
 |----------|---------|
 | **iOS** | `npm run mobile:ios:dev` (shorthand: `npm run sim:ios`) |
 | **Android** | `npm run mobile:android:dev` (shorthand: `npm run sim:android`) |
 
+**Custom port (e.g. 3000 already in use):** `MOBILE_DEV_PORT=3001 npm run sim:ios` — use the **same** port in `CAP_SERVER_URL` on a physical device (see Contributing).
+
 If Capacitor or Xcode misbehave, run `npm run mobile:doctor`.
 
-**Physical phone on Wi‑Fi:** keep `npm run dev:mobile` running, then run Capacitor with your computer’s LAN IP (see [CONTRIBUTING.md](./CONTRIBUTING.md#physical-devices)).
+**Physical phone on Wi‑Fi:** keep `npm run dev:mobile` running, then run Capacitor with your computer’s LAN IP **and the same port** (see [CONTRIBUTING.md](./CONTRIBUTING.md#physical-devices)).
 
 ## Quality checks
 
@@ -94,7 +96,7 @@ NoWaste ships as a **Next.js** app with optional **Capacitor** native shells. It
 | **Web (any OS)** | `npm run dev` → open http://localhost:3000 |
 | **iOS Simulator (Mac + Xcode)** | One command: `npm run mobile:ios:dev` — or two terminals: `npm run dev:mobile` + `npm run ios` |
 | **Android emulator** | One-time `npm run mobile:android:add`, then `npm run mobile:android:dev` (or `dev:mobile` + `npm run android`) |
-| **Physical device** | `npm run dev:mobile` plus `CAP_SERVER_URL=http://<your-LAN-IP>:3000` when running Capacitor (see Contributing) |
+| **Physical device** | `npm run dev:mobile` plus `CAP_SERVER_URL=http://<your-LAN-IP>:<port>` matching `MOBILE_DEV_PORT` (default 3000; see Contributing) |
 
 Short **merge-friendly workflow** tips for larger features are also in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
@@ -180,9 +182,9 @@ App runs at `http://localhost:3000`.
 ## Available Scripts
 
 - `npm run dev` - start local dev server (Webpack mode)
-- `npm run dev:mobile` - dev server on `0.0.0.0:3000` (for simulators / LAN devices)
+- `npm run dev:mobile` - dev server on `0.0.0.0` and **`MOBILE_DEV_PORT`** (default 3000; alias `MOBILE_PORT`)
 - `npm run dev:turbo` - start local dev server in Turbopack mode
-- `npm run mobile:ios:dev` / `npm run mobile:android:dev` - start dev server, **wait for HTTP on :3000**, then open simulator (180s wait budget for slow compiles)
+- `npm run mobile:ios:dev` / `npm run mobile:android:dev` - start dev server, **wait for HTTP on the chosen port**, then open simulator (180s wait budget for slow compiles)
 - `npm run sim:ios` / `npm run sim:android` - aliases for the above
 - `npm run mobile:doctor` - Capacitor environment check (`cap doctor`)
 - `npm run ios` / `npm run android` - Capacitor only (run `npm run dev:mobile` in another terminal; see [CONTRIBUTING.md](./CONTRIBUTING.md))

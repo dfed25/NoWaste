@@ -15,6 +15,8 @@ Long-running feature branches that drift from `main` tend to pick up merge confl
 
 NoWaste is a **Next.js web app** wrapped with **Capacitor** for native shells. It is **not** an Expo project—there is no Expo Go, and `npm run dev` does **not** offer interactive `i` / `a` / `w` keys (that behavior is Expo CLI). Use the commands below instead.
 
+**Port for all mobile scripts:** set **`MOBILE_DEV_PORT`** or **`MOBILE_PORT`** (default **3000**) so `dev:mobile`, `npm run ios` / `android`, and `sim:*` stay aligned. Example: `MOBILE_DEV_PORT=3001 npm run sim:ios`.
+
 ### Web browser (all platforms—easiest)
 
 ```bash
@@ -92,23 +94,28 @@ npm run mobile:android:dev
 npm run sim:android
 ```
 
-**Or two terminals:** A — `npm run dev:mobile`, B — `npm run android` (`mobile:android:run` with `CAP_SERVER_URL=http://localhost:3000`).
+**Or two terminals:** A — `npm run dev:mobile`, B — `npm run android` (`CAP_SERVER_URL` is set from `MOBILE_DEV_PORT` / `MOBILE_PORT`, default `http://localhost:3000`).
 
 ---
 
 ### Physical devices
 
-The simulator scripts use `http://localhost:3000`, which **does not** resolve to your computer from a physical phone. Use your machine’s **LAN IP** instead.
+`localhost` inside the native app is the **phone**, not your Mac/PC. Use your machine’s **LAN IP** and the **same port** as `MOBILE_DEV_PORT` (default **3000**).
 
-1. Start the dev server: `npm run dev:mobile`
-2. From the project root, run Capacitor with a custom URL (example IP—replace with yours):
+1. Start the dev server: `npm run dev:mobile` (or `MOBILE_DEV_PORT=3001 npm run dev:mobile` if you use another port).
+2. From the project root, run Capacitor with that URL (replace IP and port):
 
 ```bash
-# iOS device (macOS + Xcode) — replace the IP with your machine’s LAN address
-npx cross-env CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run ios -l --external
+# macOS / Linux — iOS device (Xcode)
+CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run ios -l --external
 
-# Android device
-npx cross-env CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run android -l --external
+# macOS / Linux — Android device
+CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run android -l --external
+```
+
+```powershell
+# Windows PowerShell
+$env:CAP_SERVER_URL="http://192.168.1.10:3000"; npx cap run ios -l --external
 ```
 
 Phone and computer must be on the **same Wi‑Fi**. For iOS, if you use `http://`, ensure `capacitor.config.ts` keeps **cleartext** enabled for that URL (already the case for `http://` server URLs).
