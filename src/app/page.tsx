@@ -6,15 +6,21 @@ import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 export default function Home() {
   return (
     <section className="space-y-6 pb-8">
-      <Card variant="elevated" className="space-y-5 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/30">
+      <Card
+        variant="elevated"
+        className="space-y-6 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/30"
+      >
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="brand">Live marketplace</Badge>
             <Badge variant="neutral">Mobile-first</Badge>
+            <Badge variant="success">Fast checkout</Badge>
           </div>
-          <h1 className="text-title-xl text-neutral-900">Rescue great food before it goes to waste.</h1>
+          <h1 className="max-w-3xl text-title-xl text-neutral-900">
+            Rescue great food before it goes to waste.
+          </h1>
           <p className="max-w-2xl text-body-md text-neutral-600">
-            Browse discounted surplus meals nearby, reserve in seconds, and pick up during restaurant-defined windows.
+            Browse discounted surplus meals nearby, reserve in seconds, save your favorite picks, and pick up during restaurant-defined windows.
           </p>
         </div>
 
@@ -33,16 +39,34 @@ export default function Home() {
           </Card>
         </div>
 
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="border-neutral-200/80">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">1</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">Browse local listings</p>
+            <p className="mt-1 text-xs text-neutral-600">Filter by distance, diet, pickup time, and price.</p>
+          </Card>
+          <Card className="border-neutral-200/80">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">2</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">Reserve instantly</p>
+            <p className="mt-1 text-xs text-neutral-600">Complete checkout and get a pickup confirmation code.</p>
+          </Card>
+          <Card className="border-neutral-200/80">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">3</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900">Pick up on time</p>
+            <p className="mt-1 text-xs text-neutral-600">Show your code and collect your rescued meal.</p>
+          </Card>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <Link
             href="/listings"
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             Explore listings
           </Link>
           <Link
             href="/listings/new"
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
           >
             Create listing
           </Link>
@@ -52,7 +76,10 @@ export default function Home() {
       <Card className="space-y-3 border-neutral-200/80">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-title-md">Nearby surplus picks</h2>
-          <Link href="/dashboard" className="text-sm font-medium text-brand-700 hover:underline">
+          <Link
+            href="/dashboard"
+            className="text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
+          >
             Restaurant dashboard
           </Link>
         </div>

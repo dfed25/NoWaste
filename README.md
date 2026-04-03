@@ -118,6 +118,7 @@ App runs at `http://localhost:3000`.
 - `POST /api/checkout/session` - create Stripe checkout session
 - `POST /api/jobs/expire-reservations` - secure expiration job endpoint
 - `POST /api/stripe/webhook` - Stripe event finalization for payment status
+- `GET /api/orders/me` - customer-scoped order history from `nw-user-id` cookie
 - `GET /api/admin/reports/csv` - admin-only CSV export
 
 ## Repository Notes

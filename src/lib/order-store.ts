@@ -12,10 +12,12 @@ import { createRunExclusive } from "@/lib/file-queue";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+const ORDER_INVENTORY_RESTORES_FILE = path.join(DATA_DIR, "order-inventory-restores.json");
 
 const runExclusive = createRunExclusive();
 
 export type OrderRecord = CustomerOrder;
+type InventoryRestoreMap = Record<string, string>;
 
 async function readPersistedOrders(): Promise<OrderRecord[]> {
   try {
@@ -35,6 +37,58 @@ async function writePersistedOrders(next: OrderRecord[]) {
   await writeFile(ORDERS_FILE, JSON.stringify(next, null, 2), "utf8");
 }
 
+async function readInventoryRestores(): Promise<InventoryRestoreMap> {
+  try {
+    const raw = await readFile(ORDER_INVENTORY_RESTORES_FILE, "utf8");
+    const parsed = JSON.parse(raw) as InventoryRestoreMap;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") return {};
+    console.error(`Failed reading inventory restores at ${ORDER_INVENTORY_RESTORES_FILE}:`, err.message);
+    throw err;
+  }
+}
+
+async function writeInventoryRestores(next: InventoryRestoreMap) {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(ORDER_INVENTORY_RESTORES_FILE, JSON.stringify(next, null, 2), "utf8");
+}
+
+export async function hasOrderInventoryRestore(orderId: string): Promise<boolean> {
+  return runExclusive(async () => {
+    const restores = await readInventoryRestores();
+    return Boolean(restores[orderId]);
+  });
+}
+
+export async function markOrderInventoryRestored(orderId: string) {
+  return runExclusive(async () => {
+    const restores = await readInventoryRestores();
+    restores[orderId] = new Date().toISOString();
+    await writeInventoryRestores(restores);
+  });
+}
+
+export async function checkAndMarkOrderInventoryRestored(orderId: string): Promise<boolean> {
+  return runExclusive(async () => {
+    const restores = await readInventoryRestores();
+    if (restores[orderId]) return false;
+    restores[orderId] = new Date().toISOString();
+    await writeInventoryRestores(restores);
+    return true;
+  });
+}
+
+export async function clearOrderInventoryRestore(orderId: string) {
+  return runExclusive(async () => {
+    const restores = await readInventoryRestores();
+    if (!restores[orderId]) return;
+    delete restores[orderId];
+    await writeInventoryRestores(restores);
+  });
+}
+
 export async function listAllOrders(): Promise<OrderRecord[]> {
   return runExclusive(async () => {
     const persisted = await readPersistedOrders();
@@ -49,7 +103,7 @@ export async function listAllOrders(): Promise<OrderRecord[]> {
 
 export async function getOrdersForCustomer(customerId?: string): Promise<OrderRecord[]> {
   const orders = await listAllOrders();
-  if (!customerId) return orders;
+  if (!customerId) return [];
   return orders.filter((order) => order.customerId === customerId);
 }
 

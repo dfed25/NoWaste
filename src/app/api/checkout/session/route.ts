@@ -12,6 +12,13 @@ import {
   reserveListingQuantityById,
   restoreListingQuantityById,
 } from "@/lib/marketplace-store";
+import {
+  createCustomerId,
+  encodeSignedCustomerId,
+  getCustomerIdCookieName,
+  parseCustomerIdCookie,
+  parseCustomerIdCookieFromCookieHeader,
+} from "@/lib/customer-id-cookie";
 
 type CheckoutBody = {
   listingId: string;
@@ -22,6 +29,11 @@ type CheckoutBody = {
     email: string;
     phone: string;
   };
+};
+
+type CustomerCookieResult = {
+  customerId?: string;
+  needsResign: boolean;
 };
 
 function resolveAppOrigin(request: Request) {
@@ -52,28 +64,36 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
   );
 }
 
-function deriveCustomerId(email: string, fallbackId?: string) {
-  if (fallbackId && fallbackId.length > 0) return fallbackId;
-  return `guest:${email.trim().toLowerCase()}`;
-}
-function readUserIdFromCookieHeader(request: Request) {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : undefined;
+function deriveCustomerId(existingCustomerId?: string) {
+  if (existingCustomerId && existingCustomerId.length > 0) return existingCustomerId;
+  return createCustomerId();
 }
 
-async function readUserIdFromCookie(request: Request) {
+async function readUserIdFromCookie(request: Request): Promise<CustomerCookieResult> {
   try {
     const cookieStore = await cookies();
-    const value = cookieStore.get("nw-user-id")?.value;
-    if (value) return value;
+    const value = cookieStore.get(getCustomerIdCookieName())?.value;
+    const parsed = parseCustomerIdCookie(value);
+    if (parsed.customerId) return parsed;
   } catch {
     // During direct route unit tests there may be no request scope for cookies().
   }
 
-  return readUserIdFromCookieHeader(request);
+  return parseCustomerIdCookieFromCookieHeader(request);
 }
 
+function withCustomerCookie(response: NextResponse, encodedCookieValue?: string) {
+  if (!encodedCookieValue) return response;
+
+  response.cookies.set(getCustomerIdCookieName(), encodedCookieValue, {
+    path: "/",
+    sameSite: "lax",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  return response;
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -106,8 +126,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const userIdFromCookie = await readUserIdFromCookie(request);
-  const customerId = deriveCustomerId(body.customer.email, userIdFromCookie);
+  const customerCookie = await readUserIdFromCookie(request);
+  const customerId = deriveCustomerId(customerCookie.customerId);
+  const shouldSetCustomerCookie = !customerCookie.customerId || customerCookie.needsResign;
+  const encodedCustomerCookie = shouldSetCustomerCookie
+    ? encodeSignedCustomerId(customerId)
+    : undefined;
+
+  if (shouldSetCustomerCookie && !encodedCustomerCookie) {
+    return NextResponse.json(
+      { error: "Checkout is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
 
   const reservedListing = await reserveListingQuantityById(listing.id, quantity);
   if (!reservedListing) {
@@ -127,7 +158,8 @@ export async function POST(request: Request) {
 
   if (!stripeSecretKey) {
     await updateOrderPaymentState(order.id, "paid");
-    return NextResponse.json({ confirmationUrl });
+    const response = NextResponse.json({ confirmationUrl });
+    return withCustomerCookie(response, encodedCustomerCookie);
   }
 
   const stripe = new Stripe(stripeSecretKey);
@@ -196,5 +228,6 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ checkoutUrl: session.url });
+  const response = NextResponse.json({ checkoutUrl: session.url });
+  return withCustomerCookie(response, encodedCustomerCookie);
 }

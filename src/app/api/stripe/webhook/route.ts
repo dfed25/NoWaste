@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { systemCancelOrder, updateOrderPaymentState } from "@/lib/order-store";
+import {
+  checkAndMarkOrderInventoryRestored,
+  clearOrderInventoryRestore,
+  getOrderById,
+  systemCancelOrder,
+  updateOrderPaymentState,
+} from "@/lib/order-store";
 import { restoreListingQuantityById } from "@/lib/marketplace-store";
+import {
+  claimStripeEvent,
+  markStripeEventProcessed,
+  releaseStripeEventClaim,
+} from "@/lib/stripe-event-store";
 
 export async function POST(request: Request) {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -29,50 +40,70 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const orderId = session.metadata?.orderId;
-    if (orderId) {
-      const updated = await updateOrderPaymentState(orderId, "paid");
-      if (!updated) {
-        console.warn("Webhook: order not found for checkout.session.completed", {
-          orderId,
-          eventId: event.id,
-        });
-      }
-    }
+  const claim = await claimStripeEvent(event.id, event.type);
+  if (claim.duplicate) {
+    return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
   }
 
-  if (
-    event.type === "checkout.session.expired" ||
-    event.type === "checkout.session.async_payment_failed"
-  ) {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const orderId = session.metadata?.orderId;
-    if (orderId) {
-      const canceled = await systemCancelOrder(orderId, "failed");
-      if (canceled) {
-        try {
-          const restored = await restoreListingQuantityById(canceled.listingId, canceled.quantity);
-          if (!restored) {
-            throw new Error(
-              `Inventory restore returned null for listing ${canceled.listingId}, quantity ${canceled.quantity}`,
-            );
-          }
-        } catch (error) {
-          console.error("Webhook inventory restore failed", {
-            listingId: canceled.listingId,
-            quantity: canceled.quantity,
-            error,
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const orderId = session.metadata?.orderId;
+      if (orderId) {
+        const updated = await updateOrderPaymentState(orderId, "paid");
+        if (!updated) {
+          console.warn("Webhook: order not found for checkout.session.completed", {
+            orderId,
+            eventId: event.id,
           });
-          return NextResponse.json(
-            { error: "Failed to restore inventory during webhook handling" },
-            { status: 500 },
-          );
         }
       }
     }
-  }
 
-  return NextResponse.json({ received: true }, { status: 200 });
+    if (
+      event.type === "checkout.session.expired" ||
+      event.type === "checkout.session.async_payment_failed"
+    ) {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const orderId = session.metadata?.orderId;
+      if (orderId) {
+        const canceled = await systemCancelOrder(orderId, "failed");
+        const cancellation = canceled ?? (await getOrderById(orderId));
+
+        if (cancellation?.fulfillmentStatus === "canceled") {
+          const shouldRestore = await checkAndMarkOrderInventoryRestored(cancellation.id);
+          if (shouldRestore) {
+            try {
+              const restored = await restoreListingQuantityById(
+                cancellation.listingId,
+                cancellation.quantity,
+              );
+              if (!restored) {
+                throw new Error(
+                  `Inventory restore returned null for listing ${cancellation.listingId}, quantity ${cancellation.quantity}`,
+                );
+              }
+            } catch (error) {
+              await clearOrderInventoryRestore(cancellation.id);
+              throw error;
+            }
+          }
+        }
+      }
+    }
+
+    await markStripeEventProcessed(event.id, event.type);
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (error) {
+    await releaseStripeEventClaim(event.id);
+    console.error("Stripe webhook side effect failed", {
+      eventId: event.id,
+      eventType: event.type,
+      error,
+    });
+    return NextResponse.json(
+      { error: "Failed to process Stripe webhook event" },
+      { status: 500 },
+    );
+  }
 }
