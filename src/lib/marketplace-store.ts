@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { ListingInput } from "@/lib/validation";
+import { listings as seedListings } from "@/lib/marketplace";
 import type { ListingLifecycleStatus, ListingItem, ManagedListing } from "@/lib/marketplace";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
@@ -311,3 +312,86 @@ async function writePersistedListings(next: ManagedListing[]) {
   }
 }
 
+
+
+function toManagedListingFromSeed(seed: ListingItem): ManagedListing {
+  const now = new Date().toISOString();
+  const startMs = new Date(seed.pickupWindowStart).getTime();
+  return {
+    ...seed,
+    quantityTotal: Math.max(1, seed.quantityRemaining),
+    reservationCutoffAt: new Date(startMs - 30 * 60 * 1000).toISOString(),
+    donationFallbackEnabled: false,
+    listingType: "consumer",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function listAllListings(): Promise<ListingItem[]> {
+  const persisted = await listManagedListings();
+  const seen = new Set(persisted.map((item) => item.id));
+  const seeded = seedListings.filter((item) => !seen.has(item.id));
+  return [...persisted, ...seeded];
+}
+
+export async function getListingByIdFromStore(id: string): Promise<ListingItem | null> {
+  const all = await listAllListings();
+  return all.find((listing) => listing.id === id) ?? null;
+}
+
+export async function reserveListingQuantityById(
+  id: string,
+  quantity: number,
+): Promise<ListingItem | null> {
+  if (!Number.isInteger(quantity) || quantity < 1) return null;
+
+  return runExclusive(async () => {
+    const persisted = await readPersistedListings();
+    const index = persisted.findIndex((entry) => entry.id === id);
+
+    if (index >= 0) {
+      const current = persisted[index];
+      if (current.quantityRemaining < quantity) return null;
+      const updated: ManagedListing = {
+        ...current,
+        quantityRemaining: current.quantityRemaining - quantity,
+        updatedAt: new Date().toISOString(),
+      };
+      persisted[index] = updated;
+      await writePersistedListings(persisted);
+      return updated;
+    }
+
+    const seed = seedListings.find((item) => item.id === id);
+    if (!seed || seed.quantityRemaining < quantity) return null;
+    const created = toManagedListingFromSeed(seed);
+    created.quantityRemaining -= quantity;
+    await writePersistedListings([created, ...persisted]);
+    return created;
+  });
+}
+
+export async function restoreListingQuantityById(
+  id: string,
+  quantity: number,
+): Promise<ListingItem | null> {
+  if (!Number.isInteger(quantity) || quantity < 1) return null;
+
+  return runExclusive(async () => {
+    const persisted = await readPersistedListings();
+    const index = persisted.findIndex((entry) => entry.id === id);
+    if (index < 0) return null;
+
+    const current = persisted[index];
+    const updated: ManagedListing = {
+      ...current,
+      quantityRemaining: Math.min(current.quantityTotal, current.quantityRemaining + quantity),
+      updatedAt: new Date().toISOString(),
+    };
+    persisted[index] = updated;
+    await writePersistedListings(persisted);
+    return updated;
+  });
+}
