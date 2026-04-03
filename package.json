@@ -21,8 +21,8 @@
     "mobile:ios:run": "CAP_SERVER_URL=http://localhost:3000 npx cap run ios -l --external"
   },
   "dependencies": {
-    "@capacitor/core": "^8.3.0",
-    "@capacitor/ios": "^8.3.0",
+    "@capacitor/core": "^7.6.1",
+    "@capacitor/ios": "^7.6.1",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.101.1",
     "clsx": "^2.1.1",

@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/states/empty-state";
 import type { ListingItem } from "@/lib/marketplace";
 import {
+  notifySavedListingsChanged,
+  SAVED_LISTINGS_CHANGED_EVENT,
   SAVED_LISTINGS_KEY,
   readSavedListingIdsFromStorage,
   writeSavedListingIdsToStorage,
@@ -14,16 +16,36 @@ import {
 
 type SavedListingsPanelProps = {
   compact?: boolean;
+  initialListings?: ListingItem[];
 };
 
-export function SavedListingsPanel({ compact = false }: SavedListingsPanelProps) {
+export function SavedListingsPanel({ compact = false, initialListings }: SavedListingsPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [listings, setListings] = useState<ListingItem[]>([]);
+  const [listings, setListings] = useState<ListingItem[]>(initialListings ?? []);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSavedIds(readSavedListingIdsFromStorage(window.localStorage));
+    function syncSavedIds() {
+      setSavedIds(readSavedListingIdsFromStorage(window.localStorage));
+    }
+
+    syncSavedIds();
+    window.addEventListener(SAVED_LISTINGS_CHANGED_EVENT, syncSavedIds);
+    window.addEventListener("storage", syncSavedIds);
+
+    return () => {
+      window.removeEventListener(SAVED_LISTINGS_CHANGED_EVENT, syncSavedIds);
+      window.removeEventListener("storage", syncSavedIds);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialListings && initialListings.length > 0) {
+      setListings(initialListings);
+      setIsLoading(false);
+      return;
+    }
 
     let mounted = true;
     async function load() {
@@ -55,7 +77,7 @@ export function SavedListingsPanel({ compact = false }: SavedListingsPanelProps)
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [initialListings]);
 
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
   const savedListings = useMemo(() => {
@@ -68,6 +90,7 @@ export function SavedListingsPanel({ compact = false }: SavedListingsPanelProps)
     setSavedIds((previous) => {
       const next = previous.filter((value) => value !== id);
       writeSavedListingIdsToStorage(window.localStorage, next);
+      notifySavedListingsChanged();
       return next;
     });
   }
@@ -116,12 +139,18 @@ export function SavedListingsPanel({ compact = false }: SavedListingsPanelProps)
               {listing.restaurantName} · ${(listing.priceCents / 100).toFixed(2)} · {listing.distanceMiles.toFixed(1)} mi
             </p>
             <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/checkout/${listing.id}`}
-                className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700"
-              >
-                Reserve
-              </Link>
+              {soldOut ? (
+                <span className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-200 px-3 text-sm font-medium text-neutral-500">
+                  Checkout unavailable
+                </span>
+              ) : (
+                <Link
+                  href={`/checkout/${listing.id}`}
+                  className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                >
+                  Reserve
+                </Link>
+              )}
               <Link
                 href={`/listings/${listing.id}`}
                 className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200"

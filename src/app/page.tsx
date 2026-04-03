@@ -3,8 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
+import { listAllListings } from "@/lib/marketplace-store";
 
-export default function Home() {
+export default async function Home() {
+  const listings = await listAllListings();
+
   return (
     <section className="space-y-6 pb-8">
       <Card
@@ -91,7 +94,7 @@ export default function Home() {
               Restaurant dashboard
             </Link>
           </div>
-          <MarketplaceFeed />
+          <MarketplaceFeed initialListings={listings} />
         </Card>
 
         <Card className="space-y-3 border-neutral-200/80">
@@ -101,7 +104,7 @@ export default function Home() {
               Open saved
             </Link>
           </div>
-          <SavedListingsPanel compact />
+          <SavedListingsPanel compact initialListings={listings} />
         </Card>
       </div>
     </section>

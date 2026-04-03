@@ -10,13 +10,18 @@ import { EmptyState } from "@/components/states/empty-state";
 import type { ListingItem } from "@/lib/marketplace";
 import { filterListings, listings as fallbackListings } from "@/lib/marketplace";
 import {
+  notifySavedListingsChanged,
   readSavedListingIdsFromStorage,
   writeSavedListingIdsToStorage,
 } from "@/lib/saved-listings";
 
 type SortBy = "recommended" | "price_low" | "price_high" | "distance" | "pickup_soon";
 
-export function MarketplaceFeed() {
+type MarketplaceFeedProps = {
+  initialListings?: ListingItem[];
+};
+
+export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
   const [keyword, setKeyword] = useState("");
   const [maxDistanceMiles, setMaxDistanceMiles] = useState<number | "">("");
   const [pickupPart, setPickupPart] = useState<"any" | "afternoon" | "evening" | "night">("any");
@@ -27,11 +32,19 @@ export function MarketplaceFeed() {
   const [savedOnly, setSavedOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const didRestoreSaved = useRef(false);
-  const [sourceListings, setSourceListings] = useState<ListingItem[]>(fallbackListings);
+  const [sourceListings, setSourceListings] = useState<ListingItem[]>(
+    initialListings && initialListings.length > 0 ? initialListings : fallbackListings,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialListings && initialListings.length > 0) {
+      setSourceListings(initialListings);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadListings() {
@@ -63,7 +76,7 @@ export function MarketplaceFeed() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialListings]);
 
   useEffect(() => {
     try {
@@ -78,6 +91,7 @@ export function MarketplaceFeed() {
   useEffect(() => {
     if (!didRestoreSaved.current) return;
     writeSavedListingIdsToStorage(window.localStorage, savedIds);
+    notifySavedListingsChanged();
   }, [savedIds]);
 
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
