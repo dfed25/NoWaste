@@ -24,8 +24,12 @@ NoWaste is a Next.js app for reducing food waste by connecting surplus restauran
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `GET` | `/api/orders/restaurant` | Staff: uses restaurant scope from session/cookies. Admin: requires `?restaurantId=<id>`. |
+| `GET` | `/api/orders/restaurant` | Staff: restaurant scope comes from the **signed** session (`nw-session-sig` covers `nw-restaurant-id`). Admin: requires `?restaurantId=<id>`. |
 | `PATCH` | `/api/orders/{orderId}/fulfillment` | Body: `{ "status": "picked_up" }` or `{ "status": "missed_pickup" }`. Only while fulfillment is `reserved`. |
+
+Signed session cookies (`nw-authenticated`, `nw-role`, optional `nw-restaurant-id`, and `nw-session-sig`) use `AUTH_SESSION_SECRET`. Staff cannot change `nw-restaurant-id` without invalidating the signature.
+
+For local demos, `POST /api/auth/nw-session` with JSON such as `{ "role": "restaurant_staff", "restaurantId": "r1" }` sets matching cookies. In production that route is disabled unless `ALLOW_NW_SESSION_ISSUE=1`; prefer issuing scope from your auth provider when user profiles store `restaurantId`.
 
 ## Local development
 

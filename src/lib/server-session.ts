@@ -1,14 +1,16 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
+import { AUTH_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
-const AUTH_COOKIE_NAME = "nw-authenticated";
-const SIGNATURE_COOKIE_NAME = "nw-session-sig";
+export const NW_SESSION_SIGNATURE_COOKIE_NAME = "nw-session-sig";
 
 type VerifiedSession = {
   isAuthenticated: boolean;
   user?: {
     role?: string;
+    /** Present for restaurant_staff when the signed session includes scope. */
+    scopedRestaurantId?: string;
   };
 };
 
@@ -44,21 +46,44 @@ function hasValidSignature(value: string, providedSignature: string, secret: str
   return timingSafeEqual(a, b);
 }
 
+/** Canonical string covered by `nw-session-sig` (restaurant segment empty unless staff). */
+export function buildNwSessionCanonical(role: string, restaurantIdForStaff: string) {
+  const segment = role === "restaurant_staff" ? restaurantIdForStaff : "";
+  return `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=${role};${RESTAURANT_ID_COOKIE_NAME}=${segment}`;
+}
+
+export function signNwSessionCanonical(canonical: string, secret: string) {
+  return createHmac("sha256", secret).update(canonical).digest("hex");
+}
+
 export function verifyServerSession(request: Request): VerifiedSession {
   const cookies = parseCookies(request.headers.get("cookie") ?? "");
   const isAuthenticated = cookies[AUTH_COOKIE_NAME] === "1";
   const role = cookies[ADMIN_ROLE_COOKIE];
-  const signature = cookies[SIGNATURE_COOKIE_NAME];
+  const signature = cookies[NW_SESSION_SIGNATURE_COOKIE_NAME];
   const secret = process.env.AUTH_SESSION_SECRET;
 
   if (!isAuthenticated || !role || !signature || !secret) {
     return { isAuthenticated: false };
   }
 
-  const signedValue = `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=${role}`;
-  const isValid = hasValidSignature(signedValue, signature, secret);
+  const restaurantCookie = cookies[RESTAURANT_ID_COOKIE_NAME] ?? "";
+  const effectiveRestaurant = role === "restaurant_staff" ? restaurantCookie : "";
+  const canonicalNew = buildNwSessionCanonical(role, effectiveRestaurant);
+
+  let isValid = hasValidSignature(canonicalNew, signature, secret);
+  if (!isValid && role !== "restaurant_staff") {
+    const legacy = `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=${role}`;
+    isValid = hasValidSignature(legacy, signature, secret);
+  }
+
   if (!isValid) return { isAuthenticated: false };
 
-  return { isAuthenticated: true, user: { role } };
+  return {
+    isAuthenticated: true,
+    user: {
+      role,
+      scopedRestaurantId: role === "restaurant_staff" ? effectiveRestaurant : undefined,
+    },
+  };
 }
-

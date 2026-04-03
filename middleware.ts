@@ -11,6 +11,7 @@ const protectedPrefixes = [
   "/admin",
   "/orders",
   "/listings",
+  "/reservations",
 ];
 
 const authPages = ["/auth/login", "/auth/sign-up", "/auth/reset-password"];
@@ -54,6 +55,7 @@ export const config = {
     "/admin/:path*",
     "/orders/:path*",
     "/listings/:path*",
+    "/reservations/:path*",
     "/auth/:path*",
   ],
 };

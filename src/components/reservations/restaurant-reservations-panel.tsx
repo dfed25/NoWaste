@@ -231,7 +231,7 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
           <p className="mt-1 text-2xl font-semibold text-neutral-900">{stats.reserved}</p>
         </Card>
         <Card className="border-neutral-200/80 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Completed today</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Picked up</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-800">{stats.picked}</p>
         </Card>
         <Card className="border-neutral-200/80 bg-white p-4 shadow-sm">
