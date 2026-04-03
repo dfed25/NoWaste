@@ -193,6 +193,20 @@ export async function listOrdersForCustomer(customerId: string): Promise<Custome
   return sortOrdersByCreatedAtDesc(getMockOrders(customerId));
 }
 
+/**
+ * Reservations for a restaurant (persisted orders only).
+ */
+export async function listOrdersForRestaurant(restaurantId: string): Promise<CustomerOrder[]> {
+  const persisted = await readPersistedOrders();
+  const scoped = persisted.filter((order) => resolveRestaurantIdForOrder(order) === restaurantId);
+  return sortOrdersByCreatedAtDesc(scoped);
+}
+
+export async function getOrderByIdUnscoped(orderId: string): Promise<CustomerOrder | null> {
+  const orders = await readPersistedOrders();
+  return orders.find((order) => order.id === orderId) ?? null;
+}
+
 export async function getOrderById(orderId: string, customerId?: string) {
   const orders = await readPersistedOrders();
   return orders.find((order) => order.id === orderId && (!customerId || order.customerId === customerId)) ?? null;
