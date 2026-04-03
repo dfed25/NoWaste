@@ -52,6 +52,7 @@ function isValidOrderRecord(value: unknown): value is CustomerOrder {
     typeof order.listingTitle === "string" &&
     (order.restaurantId === undefined || typeof order.restaurantId === "string") &&
     (order.restaurantName === undefined || typeof order.restaurantName === "string") &&
+    (order.currency === undefined || typeof order.currency === "string") &&
     typeof order.totalCents === "number" &&
     Number.isFinite(order.totalCents) &&
     typeof order.quantity === "number" &&

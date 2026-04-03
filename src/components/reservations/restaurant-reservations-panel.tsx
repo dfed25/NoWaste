@@ -26,8 +26,10 @@ function formatPickupRange(start: string, end: string) {
   return `${a.toLocaleString([], opts)} – ${b.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
 }
 
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cents / 100);
+const DEFAULT_CURRENCY = "USD";
+
+function formatMoney(cents: number, currency: string = DEFAULT_CURRENCY) {
+  return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(cents / 100);
 }
 
 function statusBadgeVariant(status: CustomerOrder["fulfillmentStatus"]) {
@@ -147,7 +149,9 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
         if (o.paymentStatus === "paid") revenueCents += o.totalCents;
       }
     }
-    return { reserved, picked, revenueCents, total: orders.length };
+    const displayCurrency =
+      orders.find((o) => o.currency?.trim())?.currency?.trim() ?? DEFAULT_CURRENCY;
+    return { reserved, picked, revenueCents, total: orders.length, displayCurrency };
   }, [orders]);
 
   const filtered = useMemo(() => {
@@ -236,7 +240,9 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
         </Card>
         <Card className="border-neutral-200/80 bg-white p-4 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Paid volume (shown)</p>
-          <p className="mt-1 text-2xl font-semibold text-brand-800">{formatMoney(stats.revenueCents)}</p>
+          <p className="mt-1 text-2xl font-semibold text-brand-800">
+            {formatMoney(stats.revenueCents, stats.displayCurrency)}
+          </p>
         </Card>
       </div>
 
@@ -292,7 +298,7 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
                     </div>
                     <p className="text-xs text-neutral-500">
                       {formatPickupRange(order.pickupWindowStart, order.pickupWindowEnd)} · Qty {order.quantity} ·{" "}
-                      {formatMoney(order.totalCents)}
+                      {formatMoney(order.totalCents, order.currency ?? DEFAULT_CURRENCY)}
                     </p>
                     <p className="font-mono text-sm text-brand-800">{order.reservationCode}</p>
                   </div>

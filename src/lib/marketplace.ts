@@ -45,6 +45,8 @@ export type CustomerOrder = {
   /** Set on new reservations; older rows may rely on listing lookup. */
   restaurantId?: string;
   restaurantName?: string;
+  /** ISO 4217 code when multi-currency is used; defaults to USD in UI when omitted. */
+  currency?: string;
   totalCents: number;
   quantity: number;
   pickupWindowStart: string;

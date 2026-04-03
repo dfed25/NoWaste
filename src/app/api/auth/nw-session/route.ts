@@ -65,20 +65,22 @@ export async function POST(request: Request) {
   const signature = signNwSessionCanonical(canonical, secret);
 
   const res = NextResponse.json({ ok: true });
-  const base = {
+  const shared = {
     path: "/" as const,
     maxAge: COOKIE_MAX_AGE,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
   };
+  const httpOnly = { ...shared, httpOnly: true as const };
+  const roleVisible = { ...shared, httpOnly: false as const };
 
-  res.cookies.set(AUTH_COOKIE_NAME, "1", base);
-  res.cookies.set(ADMIN_ROLE_COOKIE, role, base);
+  res.cookies.set(AUTH_COOKIE_NAME, "1", httpOnly);
+  res.cookies.set(ADMIN_ROLE_COOKIE, role, roleVisible);
   if (role === "restaurant_staff") {
-    res.cookies.set(RESTAURANT_ID_COOKIE_NAME, restaurantId, base);
+    res.cookies.set(RESTAURANT_ID_COOKIE_NAME, restaurantId, httpOnly);
   } else {
-    res.cookies.set(RESTAURANT_ID_COOKIE_NAME, "", { ...base, maxAge: 0 });
+    res.cookies.set(RESTAURANT_ID_COOKIE_NAME, "", { ...httpOnly, maxAge: 0 });
   }
-  res.cookies.set(NW_SESSION_SIGNATURE_COOKIE_NAME, signature, base);
+  res.cookies.set(NW_SESSION_SIGNATURE_COOKIE_NAME, signature, httpOnly);
   return res;
 }
