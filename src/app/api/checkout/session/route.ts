@@ -12,6 +12,7 @@ import {
   reserveListingQuantityById,
   restoreListingQuantityById,
 } from "@/lib/marketplace-store";
+import { createInAppNotification } from "@/lib/notification-center-store";
 import {
   createCustomerId,
   encodeSignedCustomerId,
@@ -150,6 +151,13 @@ export async function POST(request: Request) {
     quantity,
     customer: body.customer,
     customerId,
+  });
+
+  await createInAppNotification({
+    userId: customerId,
+    title: "Reservation created",
+    message: `Your order for ${order.quantity}x ${order.listingTitle} is reserved.`,
+    linkHref: "/orders",
   });
 
   const confirmationUrl = `${appUrl}/orders/confirmation?orderId=${encodeURIComponent(
