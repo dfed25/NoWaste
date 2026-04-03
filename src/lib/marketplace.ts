@@ -39,6 +39,7 @@ export type RestaurantItem = {
 
 export type CustomerOrder = {
   id: string;
+  customerId?: string;
   listingId: string;
   listingTitle: string;
   totalCents: number;
@@ -117,6 +118,7 @@ export const listings: ListingItem[] = [
 export const mockOrders: CustomerOrder[] = [
   {
     id: "ord_1001",
+    customerId: "demo-customer",
     listingId: "l1",
     listingTitle: "Evening surplus bowl packs",
     totalCents: 1798,
@@ -130,6 +132,7 @@ export const mockOrders: CustomerOrder[] = [
   },
   {
     id: "ord_1002",
+    customerId: "demo-customer",
     listingId: "l2",
     listingTitle: "Bakery surprise bags",
     totalCents: 650,
@@ -193,8 +196,8 @@ export function getRestaurantById(id: string) {
   return restaurants.find((restaurant) => restaurant.id === id) ?? null;
 }
 
-export function getOrdersForCustomer() {
-  return mockOrders;
+export function getOrdersForCustomer(customerId = "demo-customer") {
+  return mockOrders.filter((order) => order.customerId === customerId);
 }
 
 export function generatePickupCode(orderId: string) {

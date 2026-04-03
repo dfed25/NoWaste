@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import Stripe from "stripe";
 import { getListingById } from "@/lib/marketplace";
+import { createReservedOrder } from "@/lib/order-store";
 
 type CheckoutBody = {
   listingId: string;
@@ -19,6 +21,21 @@ function resolveAppOrigin(request: Request) {
     return new URL(request.url).origin;
   } catch {
     throw new Error("Unable to resolve app origin for checkout redirects.");
+  }
+}
+
+function readUserIdFromCookie(request: Request) {
+  try {
+    return cookies().then((cookieStore) => cookieStore.get("nw-user-id")?.value);
+  } catch {
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(/(?:^|;\s*)nw-user-id=([^;]+)/);
+    if (!match?.[1]) return Promise.resolve(undefined);
+    try {
+      return Promise.resolve(decodeURIComponent(match[1]));
+    } catch {
+      return Promise.resolve(match[1]);
+    }
   }
 }
 
@@ -66,9 +83,28 @@ export async function POST(request: Request) {
   }
 
   const appUrl = resolveAppOrigin(request);
+  const customerId = (await readUserIdFromCookie(request)) ?? "demo-customer";
+  let orderId: string;
+  try {
+    const order = await createReservedOrder({
+      customerId,
+      listingId: listing.id,
+      listingTitle: listing.title,
+      quantity,
+      totalCents: listing.priceCents * quantity,
+      pickupWindowStart: listing.pickupWindowStart,
+      pickupWindowEnd: listing.pickupWindowEnd,
+      paymentStatus: "paid",
+    });
+    orderId = order.id;
+  } catch (error) {
+    console.error("Failed to create reserved order before checkout", error);
+    return NextResponse.json({ error: "Unable to create reservation" }, { status: 500 });
+  }
+
   const confirmationUrl = `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
     listing.id,
-  )}&quantity=${quantity}`;
+  )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}`;
 
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) {
@@ -90,6 +126,7 @@ export async function POST(request: Request) {
       customer_email: body.customer.email,
       metadata: {
         listingId: listing.id,
+        orderId,
         customerName: body.customer.name,
         customerPhone: body.customer.phone,
         quantity: String(quantity),

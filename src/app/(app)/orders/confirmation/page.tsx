@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { generatePickupCode } from "@/lib/marketplace";
 
 type ConfirmationPageProps = {
@@ -17,9 +18,10 @@ export default async function OrderConfirmationPage({
   );
   const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
   const sessionId = typeof params.session_id === "string" ? params.session_id : "";
+  const orderId = typeof params.orderId === "string" ? params.orderId : "";
 
   const reservationCode = generatePickupCode(
-    sessionId ? sessionId.slice(0, 10) : `${listingId}-${quantity}`,
+    orderId || (sessionId ? sessionId.slice(0, 10) : `${listingId}-${quantity}`),
   );
 
   return (
@@ -41,6 +43,11 @@ export default async function OrderConfirmationPage({
         <p className="text-sm text-neutral-700">
           Quantity reserved: <span className="font-medium">{quantity}</span>
         </p>
+        {orderId ? (
+          <p className="text-sm text-neutral-700">
+            Order ID: <span className="font-medium">{orderId}</span>
+          </p>
+        ) : null}
       </Card>
 
       <Card className="space-y-3">
@@ -64,6 +71,9 @@ export default async function OrderConfirmationPage({
           </div>
         </div>
       </Card>
+      <Link href="/orders" className="inline-flex text-sm font-medium text-brand-700 hover:underline">
+        Back to orders center
+      </Link>
     </section>
   );
 }
