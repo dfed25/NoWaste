@@ -10,6 +10,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
+import { normalizeRole, routeForRole, serializeRoleCookie } from "@/lib/admin";
+
+function isSafeNextPath(value: string) {
+  return value.startsWith("/") && !value.startsWith("//") && !value.includes("://") && !value.startsWith("/\\");
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -32,7 +37,7 @@ export function LoginForm() {
     setIsSubmitting(true);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -51,11 +56,20 @@ export function LoginForm() {
         title: "Logged in",
       });
 
-      const next =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("next") ||
-            "/dashboard"
-          : "/dashboard";
+      const query = new URLSearchParams(window.location.search);
+
+      const requestedRole = normalizeRole(query.get("role"));
+      const metadataRole = normalizeRole(
+        (data.user?.user_metadata?.app_role as string | undefined) ??
+          (data.user?.user_metadata?.role as string | undefined),
+      );
+
+      const role = metadataRole ?? requestedRole ?? "customer";
+      const isSecure = window.location.protocol === "https:";
+      document.cookie = serializeRoleCookie(role, isSecure);
+
+      const rawNext = query.get("next");
+      const next = rawNext && isSafeNextPath(rawNext) ? rawNext : routeForRole(role);
       router.push(next);
       router.refresh();
     } catch (error) {
@@ -92,11 +106,10 @@ export function LoginForm() {
         <Link href="/auth/reset-password" className="hover:text-neutral-900">
           Forgot password?
         </Link>
-        <Link href="/auth/sign-up" className="hover:text-neutral-900">
-          Create account
+        <Link href="/get-started" className="hover:text-neutral-900">
+          Choose role
         </Link>
       </div>
     </form>
   );
 }
-
