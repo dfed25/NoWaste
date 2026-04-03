@@ -1,7 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { getAdminTables } from "@/lib/admin-reporting";
+import { requireAdminPageAccess } from "@/lib/admin-guard";
 
-export default function AdminUsersPage() {
+export default async function AdminUsersPage() {
+  await requireAdminPageAccess();
+
   const { users } = getAdminTables();
   return (
     <section className="space-y-4">
@@ -16,4 +19,3 @@ export default function AdminUsersPage() {
     </section>
   );
 }
-

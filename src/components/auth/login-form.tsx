@@ -10,19 +10,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
-import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
+import { normalizeRole, routeForRole, serializeRoleCookie } from "@/lib/admin";
 
-type AppRole = "customer" | "restaurant_staff";
-
-function normalizeRole(value: string | null | undefined): AppRole | undefined {
-  if (!value) return undefined;
-  if (value === "customer") return "customer";
-  if (value === "restaurant" || value === "restaurant_staff") return "restaurant_staff";
-  return undefined;
-}
-
-function routeForRole(role: AppRole) {
-  return role === "restaurant_staff" ? "/dashboard" : "/";
+function isSafeNextPath(value: string) {
+  return value.startsWith("/") && !value.startsWith("//") && !value.includes("://") && !value.startsWith("/\\");
 }
 
 export function LoginForm() {
@@ -65,10 +56,7 @@ export function LoginForm() {
         title: "Logged in",
       });
 
-      const query =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search)
-          : new URLSearchParams();
+      const query = new URLSearchParams(window.location.search);
 
       const requestedRole = normalizeRole(query.get("role"));
       const metadataRole = normalizeRole(
@@ -77,9 +65,11 @@ export function LoginForm() {
       );
 
       const role = metadataRole ?? requestedRole ?? "customer";
-      document.cookie = `${ADMIN_ROLE_COOKIE}=${role}; Path=/; Max-Age=604800; SameSite=Lax`;
+      const isSecure = window.location.protocol === "https:";
+      document.cookie = serializeRoleCookie(role, isSecure);
 
-      const next = query.get("next") ?? routeForRole(role);
+      const rawNext = query.get("next");
+      const next = rawNext && isSafeNextPath(rawNext) ? rawNext : routeForRole(role);
       router.push(next);
       router.refresh();
     } catch (error) {

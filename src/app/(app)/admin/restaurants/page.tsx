@@ -1,7 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { getAdminTables } from "@/lib/admin-reporting";
+import { requireAdminPageAccess } from "@/lib/admin-guard";
 
-export default function AdminRestaurantsPage() {
+export default async function AdminRestaurantsPage() {
+  await requireAdminPageAccess();
+
   const { restaurants } = getAdminTables();
   return (
     <section className="space-y-4">
@@ -16,4 +19,3 @@ export default function AdminRestaurantsPage() {
     </section>
   );
 }
-

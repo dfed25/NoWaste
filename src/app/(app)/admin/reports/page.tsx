@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { getReportingMetrics } from "@/lib/admin-reporting";
+import { requireAdminPageAccess } from "@/lib/admin-guard";
 
-export default function AdminReportsPage() {
+export default async function AdminReportsPage() {
+  await requireAdminPageAccess();
+
   const metrics = getReportingMetrics();
 
   return (
@@ -43,4 +46,3 @@ export default function AdminReportsPage() {
     </section>
   );
 }
-

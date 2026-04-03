@@ -2,6 +2,12 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+const primaryLinkClasses =
+  "inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
+
+const secondaryLinkClasses =
+  "inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2";
+
 export default function GetStartedPage() {
   return (
     <section className="space-y-4 pb-8">
@@ -30,16 +36,10 @@ export default function GetStartedPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/auth/sign-up?role=customer"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-            >
+            <Link href="/auth/sign-up?role=customer" className={primaryLinkClasses}>
               Sign up as customer
             </Link>
-            <Link
-              href="/auth/login?role=customer"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
-            >
+            <Link href="/auth/login?role=customer" className={secondaryLinkClasses}>
               I already have an account
             </Link>
           </div>
@@ -53,16 +53,10 @@ export default function GetStartedPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/auth/sign-up?role=restaurant"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-            >
+            <Link href="/auth/sign-up?role=restaurant" className={primaryLinkClasses}>
               Sign up as restaurant
             </Link>
-            <Link
-              href="/auth/login?role=restaurant"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
-            >
+            <Link href="/auth/login?role=restaurant" className={secondaryLinkClasses}>
               I already have an account
             </Link>
           </div>

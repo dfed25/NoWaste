@@ -1,19 +1,12 @@
 import Link from "next/link";
 import { SignUpForm } from "@/components/auth/sign-up-form";
+import { normalizeRole } from "@/lib/admin";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 type Props = {
   searchParams: SearchParams;
 };
-
-function normalizeRole(value: string | undefined) {
-  if (value === "customer") return "customer" as const;
-  if (value === "restaurant" || value === "restaurant_staff") {
-    return "restaurant_staff" as const;
-  }
-  return undefined;
-}
 
 export default async function SignUpPage({ searchParams }: Props) {
   const query = await searchParams;
