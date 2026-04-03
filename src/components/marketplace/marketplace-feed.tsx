@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/empty-state";
 import type { ListingItem } from "@/lib/marketplace";
 import { filterListings, listings as fallbackListings } from "@/lib/marketplace";
+import {
+  readSavedListingIdsFromStorage,
+  writeSavedListingIdsToStorage,
+} from "@/lib/saved-listings";
 
 type SortBy = "recommended" | "price_low" | "price_high" | "distance" | "pickup_soon";
-
-const SAVED_LISTINGS_KEY = "nw-saved-listings";
 
 export function MarketplaceFeed() {
   const [keyword, setKeyword] = useState("");
@@ -65,16 +67,7 @@ export function MarketplaceFeed() {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(SAVED_LISTINGS_KEY);
-      if (!raw) {
-        didRestoreSaved.current = true;
-        return;
-      }
-
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed)) {
-        setSavedIds(parsed.filter((value): value is string => typeof value === "string"));
-      }
+      setSavedIds(readSavedListingIdsFromStorage(window.localStorage));
       didRestoreSaved.current = true;
     } catch {
       // Ignore local parsing issues and start clean.
@@ -84,7 +77,7 @@ export function MarketplaceFeed() {
 
   useEffect(() => {
     if (!didRestoreSaved.current) return;
-    window.localStorage.setItem(SAVED_LISTINGS_KEY, JSON.stringify(savedIds));
+    writeSavedListingIdsToStorage(window.localStorage, savedIds);
   }, [savedIds]);
 
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);

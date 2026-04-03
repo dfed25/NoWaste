@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
+import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
 
 export default function Home() {
   return (
@@ -65,26 +66,44 @@ export default function Home() {
             Explore listings
           </Link>
           <Link
-            href="/listings/new"
+            href="/saved"
             className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
           >
-            Create listing
+            Saved picks
+          </Link>
+          <Link
+            href="/orders"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+          >
+            My orders
           </Link>
         </div>
       </Card>
 
-      <Card className="space-y-3 border-neutral-200/80">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-title-md">Nearby surplus picks</h2>
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
-          >
-            Restaurant dashboard
-          </Link>
-        </div>
-        <MarketplaceFeed />
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="space-y-3 border-neutral-200/80 lg:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-title-md">Nearby surplus picks</h2>
+            <Link
+              href="/dashboard"
+              className="text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
+            >
+              Restaurant dashboard
+            </Link>
+          </div>
+          <MarketplaceFeed />
+        </Card>
+
+        <Card className="space-y-3 border-neutral-200/80">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-title-md">Saved for later</h2>
+            <Link href="/saved" className="text-sm font-medium text-brand-700 hover:underline">
+              Open saved
+            </Link>
+          </div>
+          <SavedListingsPanel compact />
+        </Card>
+      </div>
     </section>
   );
 }

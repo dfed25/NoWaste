@@ -10,7 +10,7 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 md:px-6">
           <Link href="/" className="text-sm font-semibold tracking-tight text-brand-700">
             NoWaste
@@ -25,6 +25,9 @@ export function AppShell({ children }: AppShellProps) {
             <Link href="/orders" className="hover:text-neutral-900">
               Orders
             </Link>
+            <Link href="/saved" className="hover:text-neutral-900">
+              Saved
+            </Link>
             <Link href="/onboarding/restaurant" className="hover:text-neutral-900">
               Onboarding
             </Link>
@@ -34,11 +37,10 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:px-6 md:pb-8">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 md:px-6 md:pb-8">
         {children}
       </main>
       <MobileNav />
     </div>
   );
 }
-
