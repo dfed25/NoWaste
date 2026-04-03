@@ -8,7 +8,16 @@ export function AuthNavActions() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <span className="text-[11px] text-neutral-500 md:text-xs">…</span>;
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        className="text-[11px] text-neutral-500 md:text-xs"
+      >
+        <span aria-hidden>…</span>
+        <span className="sr-only">Loading account actions</span>
+      </span>
+    );
   }
 
   if (!user) {

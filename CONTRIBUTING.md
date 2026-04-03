@@ -114,8 +114,8 @@ CAP_SERVER_URL=http://192.168.1.10:3000 npx cap run android -l --external
 ```
 
 ```powershell
-# Windows PowerShell
-$env:CAP_SERVER_URL="http://192.168.1.10:3000"; npx cap run ios -l --external
+# Windows PowerShell (Android — iOS requires macOS + Xcode)
+$env:CAP_SERVER_URL="http://192.168.1.10:3000"; npx cap run android -l --external
 ```
 
 Phone and computer must be on the **same Wi‑Fi**. For iOS, if you use `http://`, ensure `capacitor.config.ts` keeps **cleartext** enabled for that URL (already the case for `http://` server URLs).

@@ -17,6 +17,8 @@ export function LogoutButton() {
       variant="ghost"
       size="sm"
       className="h-8 px-1.5 text-xs md:h-9 md:px-3 md:text-sm"
+      aria-busy={isLoading}
+      aria-label={isLoading ? "Logging out" : "Logout"}
       disabled={isLoading}
       onClick={async () => {
         setIsLoading(true);
@@ -37,7 +39,9 @@ export function LogoutButton() {
     >
       {isLoading ? (
         <>
-          <span className="md:hidden">…</span>
+          <span className="md:hidden" aria-hidden>
+            …
+          </span>
           <span className="hidden md:inline">Logging out...</span>
         </>
       ) : (

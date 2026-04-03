@@ -54,7 +54,7 @@ export function MobileNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       aria-label="Mobile primary navigation"
     >
-      <ul className="mx-auto flex max-w-xl snap-x snap-mandatory gap-0.5 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul className="mx-auto flex max-w-xl snap-x snap-mandatory gap-0.5 overflow-x-auto px-2 py-1 [scrollbar-width:thin] [scrollbar-color:rgb(203_213_225)_transparent]">
         {navItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
           const showUnreadBadge = item.href === "/notifications" && unreadNotifications > 0;

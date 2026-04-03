@@ -21,7 +21,7 @@ try {
 }
 
 const serverUrl = `http://localhost:${port}`;
-const waitResource = `http-get://127.0.0.1:${port}`;
+const waitResource = `http-get://localhost:${port}`;
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 
 const nextChild = spawn(
