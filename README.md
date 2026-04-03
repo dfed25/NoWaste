@@ -81,6 +81,45 @@ npm run dev:turbo
 
 App runs at `http://localhost:3000`.
 
+## iOS Simulator Testing (Xcode)
+
+You can run NoWaste in an iOS simulator using Capacitor.
+
+### Prerequisites
+
+- Xcode installed (with iOS Simulator)
+- CocoaPods installed (`sudo gem install cocoapods` if needed)
+
+### First-time setup
+
+```bash
+npm install
+npm run mobile:ios:add
+npm run mobile:sync
+npm run mobile:ios:open
+```
+
+Then in Xcode:
+
+1. Select a simulator device (for example iPhone 15)
+2. Press Run
+
+### Live-reload workflow (recommended)
+
+In terminal A:
+
+```bash
+npm run dev:mobile
+```
+
+In terminal B:
+
+```bash
+npm run mobile:ios:run
+```
+
+This launches the app in the simulator and points it at your local dev server using `CAP_SERVER_URL=http://localhost:3000`.
+
 ## Available Scripts
 
 - `npm run dev` - start local dev server (Webpack mode)

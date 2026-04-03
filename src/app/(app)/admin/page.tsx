@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { requireAdminPageAccess } from "@/lib/admin-guard";
 
 const links = [
   { href: "/admin/restaurants", label: "Restaurants table" },
@@ -10,7 +11,9 @@ const links = [
   { href: "/admin/reports", label: "Reporting dashboard" },
 ];
 
-export default function AdminPanelPage() {
+export default async function AdminPanelPage() {
+  await requireAdminPageAccess("/admin");
+
   return (
     <section className="space-y-4">
       <div>
@@ -29,4 +32,3 @@ export default function AdminPanelPage() {
     </section>
   );
 }
-
