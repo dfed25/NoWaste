@@ -21,11 +21,15 @@ try {
 
 const serverUrl = `http://localhost:${port}`;
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-const child = spawn(npx, ["cap", "run", platform, "-l", "--external"], {
-  cwd: root,
-  stdio: "inherit",
-  env: { ...process.env, CAP_SERVER_URL: serverUrl },
-  shell: process.platform === "win32",
-});
+const child = spawn(
+  npx,
+  ["cap", "run", platform, "-l", "--host", "localhost", "--port", String(port)],
+  {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env, CAP_SERVER_URL: serverUrl },
+    shell: process.platform === "win32",
+  },
+);
 
 child.on("exit", (code) => process.exit(code ?? 1));

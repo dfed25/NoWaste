@@ -77,12 +77,16 @@ nextChild.on("exit", (code, signal) => {
 
   if (shuttingDown) return;
 
-  capChild = spawn(npx, ["cap", "run", platform, "-l", "--external"], {
-    cwd: root,
-    stdio: "inherit",
-    env: { ...process.env, CAP_SERVER_URL: serverUrl },
-    shell: process.platform === "win32",
-  });
+  capChild = spawn(
+    npx,
+    ["cap", "run", platform, "-l", "--host", "localhost", "--port", String(port)],
+    {
+      cwd: root,
+      stdio: "inherit",
+      env: { ...process.env, CAP_SERVER_URL: serverUrl },
+      shell: process.platform === "win32",
+    },
+  );
 
   capChild.on("exit", (code) => {
     shutdown(code ?? 0);
