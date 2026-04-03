@@ -16,16 +16,37 @@ export function LogoutButton() {
     <Button
       variant="ghost"
       size="sm"
+      className="h-8 px-1.5 text-xs md:h-9 md:px-3 md:text-sm"
+      aria-busy={isLoading}
+      aria-label={isLoading ? "Logging out" : "Logout"}
       disabled={isLoading}
       onClick={async () => {
         setIsLoading(true);
-        await signOut();
-        pushToast({ tone: "info", title: "Logged out" });
-        router.push("/auth/login");
-        router.refresh();
+        try {
+          await signOut();
+          pushToast({ tone: "info", title: "Logged out" });
+          router.push("/auth/login");
+          router.refresh();
+        } catch {
+          pushToast({
+            tone: "error",
+            title: "Could not log out. Please try again.",
+          });
+        } finally {
+          setIsLoading(false);
+        }
       }}
     >
-      {isLoading ? "Logging out..." : "Logout"}
+      {isLoading ? (
+        <>
+          <span className="md:hidden" aria-hidden>
+            …
+          </span>
+          <span className="hidden md:inline">Logging out...</span>
+        </>
+      ) : (
+        "Logout"
+      )}
     </Button>
   );
 }

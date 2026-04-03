@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:turbo": "next dev",
-    "dev:mobile": "next dev --webpack --hostname 0.0.0.0 --port 3000",
+    "dev:mobile": "node scripts/dev-mobile-server.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -16,13 +16,22 @@
     "test:integration": "vitest run src/app/api",
     "test:ci": "vitest run --reporter=dot",
     "mobile:ios:add": "npx cap add ios",
-    "mobile:sync": "npm run build && npx cap sync ios",
+    "mobile:android:add": "npx cap add android",
+    "mobile:sync": "npm run build && npx cap sync",
     "mobile:ios:open": "npx cap open ios",
-    "mobile:ios:run": "npx cap run ios -l --external"
+    "mobile:android:open": "npx cap open android",
+    "mobile:ios:run": "node scripts/cap-native-run.mjs ios",
+    "mobile:android:run": "node scripts/cap-native-run.mjs android",
+    "android": "npm run mobile:android:run",
+    "ios": "npm run mobile:ios:run",
+    "mobile:ios:dev": "node scripts/mobile-sim-dev.mjs ios",
+    "mobile:android:dev": "node scripts/mobile-sim-dev.mjs android",
+    "sim:ios": "npm run mobile:ios:dev",
+    "sim:android": "npm run mobile:android:dev",
+    "mobile:doctor": "npx cap doctor"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.1",
-    "@capacitor/ios": "^7.6.1",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.101.1",
     "clsx": "^2.1.1",
@@ -34,6 +43,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.6.1",
+    "@capacitor/ios": "^7.6.1",
     "@capacitor/cli": "^7.6.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -46,6 +57,7 @@
     "jsdom": "^27.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "wait-on": "^9.0.4"
   }
 }
