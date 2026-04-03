@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { FirstVisitRedirect } from "@/components/onboarding/first-visit-redirect";
 import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
 import { listAllListings } from "@/lib/marketplace-store";
@@ -10,6 +11,7 @@ export default async function Home() {
 
   return (
     <section className="space-y-6 pb-8">
+      <FirstVisitRedirect />
       <Card
         variant="elevated"
         className="space-y-6 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/30"

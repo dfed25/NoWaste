@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,11 +8,16 @@ import {
   reservationCheckoutSchema,
   type ReservationCheckoutInput,
 } from "@/lib/validation";
+import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/states/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
+import {
+  readCheckoutProfile,
+  writeCheckoutProfile,
+} from "@/lib/checkout-profile-storage";
 
 type Props = {
   listingId: string;
@@ -29,12 +34,17 @@ export function ReservationCheckoutForm({
 }: Props) {
   const router = useRouter();
   const { pushToast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const didInitialPrefill = useRef(false);
 
   const {
     register,
     handleSubmit,
     watch,
+    reset,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationCheckoutSchema),
@@ -45,6 +55,35 @@ export function ReservationCheckoutForm({
       quantity: 1,
     },
   });
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    const saved = readCheckoutProfile();
+    const meta = user?.user_metadata as Record<string, unknown> | undefined;
+    const displayName =
+      typeof meta?.display_name === "string" ? meta.display_name : "";
+
+    if (!didInitialPrefill.current) {
+      reset({
+        name: saved?.name?.trim() || displayName || "",
+        email: saved?.email?.trim() || (user?.email ?? ""),
+        phone: saved?.phone?.trim() || "",
+        quantity: 1,
+      });
+      didInitialPrefill.current = true;
+      return;
+    }
+
+    if (user?.email && !getValues("email")?.trim()) {
+      setValue("email", user.email, { shouldDirty: false, shouldTouch: false });
+    }
+    if (displayName && !getValues("name")?.trim()) {
+      setValue("name", displayName, { shouldDirty: false, shouldTouch: false });
+    }
+    // reset/setValue/getValues from react-hook-form are stable; we react to auth + user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form methods intentionally omitted
+  }, [authLoading, user]);
 
   const quantity = Math.max(1, Number(watch("quantity")) || 1);
   const totalCents = unitPriceCents * quantity;
@@ -74,6 +113,12 @@ export function ReservationCheckoutForm({
         };
         throw new Error(payload.error || "Checkout failed");
       }
+
+      writeCheckoutProfile({
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+      });
 
       const payload = (await response.json()) as {
         checkoutUrl?: string;
@@ -106,6 +151,9 @@ export function ReservationCheckoutForm({
       {submitError ? <ErrorState message={submitError} /> : null}
       <Card className="space-y-3">
         <h2 className="text-title-md">Reservation</h2>
+        <p className="text-xs text-neutral-600">
+          We keep name, email, and phone on this device after a successful checkout so your next order is faster. Sign in to also sync your email from your account.
+        </p>
         <Input label="Name" error={errors.name?.message} {...register("name")} />
         <Input
           label="Email"

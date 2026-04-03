@@ -11,6 +11,7 @@ import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { signUpSchema, type SignUpInput } from "@/lib/validation";
 import { AppRole, serializeRoleCookie } from "@/lib/admin";
+import { markOnboardingSeen } from "@/lib/onboarding-storage";
 
 type Props = {
   role: AppRole;
@@ -64,6 +65,7 @@ export function SignUpForm({ role }: Props) {
 
       const isSecure = window.location.protocol === "https:";
       document.cookie = serializeRoleCookie(role, isSecure);
+      markOnboardingSeen();
 
       pushToast({
         tone: "success",

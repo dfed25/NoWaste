@@ -11,6 +11,7 @@ import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
 import { normalizeRole, routeForRole, serializeRoleCookie } from "@/lib/admin";
+import { markOnboardingSeen } from "@/lib/onboarding-storage";
 
 function isSafeNextPath(value: string) {
   return value.startsWith("/") && !value.startsWith("//") && !value.includes("://") && !value.startsWith("/\\");
@@ -55,6 +56,8 @@ export function LoginForm() {
         tone: "success",
         title: "Logged in",
       });
+
+      markOnboardingSeen();
 
       const query = new URLSearchParams(window.location.search);
 

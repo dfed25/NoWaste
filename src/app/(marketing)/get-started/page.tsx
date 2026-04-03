@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MarkOnboardingSeen } from "@/components/onboarding/mark-onboarding-seen";
 
 const primaryLinkClasses =
   "inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
@@ -11,6 +12,7 @@ const secondaryLinkClasses =
 export default function GetStartedPage() {
   return (
     <section className="space-y-4 pb-8">
+      <MarkOnboardingSeen />
       <Card
         variant="elevated"
         className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/30"
@@ -62,6 +64,16 @@ export default function GetStartedPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="space-y-2 border-neutral-200/80 bg-neutral-50/80">
+        <h2 className="text-title-md">Just browsing?</h2>
+        <p className="text-sm text-neutral-600">
+          You can explore listings now and sign up or log in when you reserve. Your contact details can be saved on checkout so you do not have to re-type them.
+        </p>
+        <Link href="/" className={secondaryLinkClasses}>
+          Browse marketplace
+        </Link>
+      </Card>
     </section>
   );
 }
