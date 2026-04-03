@@ -1,97 +1,24 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import {
-  createCustomerId,
-  encodeSignedCustomerId,
-  getCustomerIdCookieName,
-  parseCustomerIdCookie,
-  parseCustomerIdCookieFromCookieHeader,
-} from "@/lib/customer-id-cookie";
 import {
   getNotificationPreferences,
   saveNotificationPreferences,
 } from "@/lib/notification-preferences-store";
 import { notificationPreferenceSchema } from "@/lib/validation";
-
-type ResolvedCustomer = {
-  customerId: string;
-  encodedCookieValue?: string;
-};
-
-function encodeCustomerCookieValue(customerId: string): string {
-  const encoded = encodeSignedCustomerId(customerId);
-  if (encoded) return encoded;
-
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("customer-id signing secret is required in production");
-  }
-
-  return customerId;
-}
-
-async function resolveCustomer(request: Request): Promise<ResolvedCustomer> {
-  try {
-    const cookieStore = await cookies();
-    const rawValue = cookieStore.get(getCustomerIdCookieName())?.value;
-    const parsed = parseCustomerIdCookie(rawValue);
-    if (parsed.customerId) {
-      if (parsed.needsResign) {
-        const encoded = encodeCustomerCookieValue(parsed.customerId);
-        return { customerId: parsed.customerId, encodedCookieValue: encoded };
-      }
-      return { customerId: parsed.customerId };
-    }
-  } catch {
-    // cookies() can fail outside request scope in direct tests.
-  }
-
-  const fallback = parseCustomerIdCookieFromCookieHeader(request);
-  if (fallback.customerId) {
-    if (fallback.needsResign) {
-      const encoded = encodeCustomerCookieValue(fallback.customerId);
-      return { customerId: fallback.customerId, encodedCookieValue: encoded };
-    }
-    return { customerId: fallback.customerId };
-  }
-
-  const customerId = createCustomerId();
-  const encodedCookieValue = encodeCustomerCookieValue(customerId);
-  return { customerId, encodedCookieValue };
-}
-
-function withCustomerCookie(response: NextResponse, encodedCookieValue?: string) {
-  if (!encodedCookieValue) return response;
-
-  response.cookies.set(getCustomerIdCookieName(), encodedCookieValue, {
-    path: "/",
-    sameSite: "lax",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  return response;
-}
-
-async function handleResolvedCustomer(request: Request): Promise<ResolvedCustomer | NextResponse> {
-  try {
-    return await resolveCustomer(request);
-  } catch (error) {
-    console.error("Failed to resolve customer for notification preferences", error);
-    return NextResponse.json(
-      { error: "Notification preferences are temporarily unavailable" },
-      { status: 503 },
-    );
-  }
-}
+import { resolveCustomer, withCustomerCookie } from "@/lib/customer-cookie-utils";
 
 export async function GET(request: Request) {
-  const resolved = await handleResolvedCustomer(request);
-  if (resolved instanceof NextResponse) return resolved;
+  let resolved: { customerId: string; shouldSetCookie: boolean };
+  try {
+    resolved = await resolveCustomer(request);
+  } catch (error) {
+    console.error("Failed resolving customer for notification preferences", error);
+    return NextResponse.json({ error: "Account is temporarily unavailable" }, { status: 503 });
+  }
 
   try {
     const preference = await getNotificationPreferences(resolved.customerId);
     const response = NextResponse.json({ preference }, { status: 200 });
-    return withCustomerCookie(response, resolved.encodedCookieValue);
+    return withCustomerCookie(response, resolved.customerId, resolved.shouldSetCookie);
   } catch (error) {
     console.error("Failed to fetch notification preferences", error);
     return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
@@ -99,8 +26,13 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const resolved = await handleResolvedCustomer(request);
-  if (resolved instanceof NextResponse) return resolved;
+  let resolved: { customerId: string; shouldSetCookie: boolean };
+  try {
+    resolved = await resolveCustomer(request);
+  } catch (error) {
+    console.error("Failed resolving customer for notification preferences", error);
+    return NextResponse.json({ error: "Account is temporarily unavailable" }, { status: 503 });
+  }
 
   let body: unknown;
   try {
@@ -109,28 +41,31 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Malformed JSON payload" }, { status: 400 });
   }
 
-  const payload =
-    body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  let mergedCandidate: Record<string, unknown>;
+  try {
+    const current = await getNotificationPreferences(resolved.customerId);
+    mergedCandidate = {
+      ...current,
+      ...(body && typeof body === "object" ? (body as Record<string, unknown>) : {}),
+      userId: resolved.customerId,
+    };
+  } catch (error) {
+    console.error("Failed to fetch current notification preferences", error);
+    return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
+  }
+
+  const parsed = notificationPreferenceSchema.safeParse(mergedCandidate);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid preferences payload" },
+      { status: 400 },
+    );
+  }
 
   try {
-    const currentPreference = await getNotificationPreferences(resolved.customerId);
-
-    const parsed = notificationPreferenceSchema.safeParse({
-      ...currentPreference,
-      ...payload,
-      userId: resolved.customerId,
-    });
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Invalid notification preferences" },
-        { status: 400 },
-      );
-    }
-
     const preference = await saveNotificationPreferences(resolved.customerId, parsed.data);
     const response = NextResponse.json({ ok: true, preference }, { status: 200 });
-    return withCustomerCookie(response, resolved.encodedCookieValue);
+    return withCustomerCookie(response, resolved.customerId, resolved.shouldSetCookie);
   } catch (error) {
     console.error("Failed to save notification preferences", error);
     return NextResponse.json({ error: "Failed to save preferences" }, { status: 500 });
