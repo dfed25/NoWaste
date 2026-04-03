@@ -10,6 +10,7 @@ const protectedPrefixes = [
   "/donation",
   "/admin",
   "/saved",
+  "/notifications",
 ];
 
 const authPages = ["/auth/login", "/auth/sign-up", "/auth/reset-password"];
@@ -60,6 +61,7 @@ export const config = {
     "/donation/:path*",
     "/admin/:path*",
     "/saved/:path*",
+    "/notifications/:path*",
     "/auth/:path*",
   ],
 };

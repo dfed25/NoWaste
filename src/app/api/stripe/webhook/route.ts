@@ -8,6 +8,7 @@ import {
   updateOrderPaymentState,
 } from "@/lib/order-store";
 import { restoreListingQuantityById } from "@/lib/marketplace-store";
+import { createInAppNotification } from "@/lib/notification-center-store";
 import {
   claimStripeEvent,
   markStripeEventProcessed,
@@ -56,6 +57,13 @@ export async function POST(request: Request) {
             orderId,
             eventId: event.id,
           });
+        } else if (updated.customerId) {
+          await createInAppNotification({
+            userId: updated.customerId,
+            title: "Payment confirmed",
+            message: `Payment for ${updated.listingTitle} has been confirmed.`,
+            linkHref: `/orders/confirmation?orderId=${encodeURIComponent(updated.id)}`,
+          });
         }
       }
     }
@@ -71,6 +79,14 @@ export async function POST(request: Request) {
         const cancellation = canceled ?? (await getOrderById(orderId));
 
         if (cancellation?.fulfillmentStatus === "canceled") {
+          if (cancellation.customerId) {
+            await createInAppNotification({
+              userId: cancellation.customerId,
+              title: "Payment failed",
+              message: `Your order for ${cancellation.listingTitle} expired before payment completed.`,
+              linkHref: "/orders",
+            });
+          }
           const shouldRestore = await checkAndMarkOrderInventoryRestored(cancellation.id);
           if (shouldRestore) {
             try {
