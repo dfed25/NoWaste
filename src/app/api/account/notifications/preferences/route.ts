@@ -25,7 +25,7 @@ async function resolveCustomer(request: Request): Promise<ResolvedCustomer> {
     const parsed = parseCustomerIdCookie(rawValue);
     if (parsed.customerId) {
       if (parsed.needsResign) {
-        const encoded = encodeSignedCustomerId(parsed.customerId);
+        const encoded = encodeSignedCustomerId(parsed.customerId) ?? parsed.customerId;
         return { customerId: parsed.customerId, encodedCookieValue: encoded };
       }
       return { customerId: parsed.customerId };
@@ -37,14 +37,14 @@ async function resolveCustomer(request: Request): Promise<ResolvedCustomer> {
   const fallback = parseCustomerIdCookieFromCookieHeader(request);
   if (fallback.customerId) {
     if (fallback.needsResign) {
-      const encoded = encodeSignedCustomerId(fallback.customerId);
+      const encoded = encodeSignedCustomerId(fallback.customerId) ?? fallback.customerId;
       return { customerId: fallback.customerId, encodedCookieValue: encoded };
     }
     return { customerId: fallback.customerId };
   }
 
   const customerId = createCustomerId();
-  const encodedCookieValue = encodeSignedCustomerId(customerId);
+  const encodedCookieValue = encodeSignedCustomerId(customerId) ?? customerId;
   return { customerId, encodedCookieValue };
 }
 

@@ -12,6 +12,22 @@ const PREFERENCES_FILE = path.join(DATA_DIR, "notification-preferences.json");
 // NOTE: This in-memory queue serializes writes within a single process only.
 // Production multi-instance deployments should use database-backed persistence.
 const runExclusive = createRunExclusive();
+let didWarnSingleInstanceStore = false;
+
+function assertSingleInstanceStore() {
+  if (process.env.NOWASTE_MULTI_INSTANCE === "1") {
+    throw new Error(
+      "notification-preferences-store is single-process only. Use shared DB/KV persistence in multi-instance mode.",
+    );
+  }
+
+  if (!didWarnSingleInstanceStore && process.env.NODE_ENV === "production") {
+    didWarnSingleInstanceStore = true;
+    console.warn(
+      "notification-preferences-store uses process-local locking only. Avoid multi-instance deployments without shared persistence.",
+    );
+  }
+}
 
 type PreferencesMap = Record<string, NotificationPreference & { updatedAt: string }>;
 
@@ -19,8 +35,9 @@ async function readPreferences(): Promise<PreferencesMap> {
   try {
     const raw = await readFile(PREFERENCES_FILE, "utf8");
     try {
-      const parsed = JSON.parse(raw) as PreferencesMap;
-      return parsed && typeof parsed === "object" ? parsed : {};
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      return parsed as PreferencesMap;
     } catch {
       console.error(`Malformed JSON in ${PREFERENCES_FILE}; returning empty preferences map`);
       return {};
@@ -58,6 +75,7 @@ async function writePreferences(next: PreferencesMap) {
 
 export async function getNotificationPreferences(userId: string): Promise<NotificationPreference> {
   return runExclusive(async () => {
+    assertSingleInstanceStore();
     const map = await readPreferences();
     const persisted = map[userId];
     if (!persisted) {
@@ -81,6 +99,7 @@ export async function saveNotificationPreferences(
   input: NotificationPreference,
 ): Promise<NotificationPreference> {
   return runExclusive(async () => {
+    assertSingleInstanceStore();
     const map = await readPreferences();
     map[userId] = {
       userId,
