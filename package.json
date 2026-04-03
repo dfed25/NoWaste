@@ -18,7 +18,7 @@
     "mobile:ios:add": "npx cap add ios",
     "mobile:sync": "npm run build && npx cap sync ios",
     "mobile:ios:open": "npx cap open ios",
-    "mobile:ios:run": "CAP_SERVER_URL=http://localhost:3000 npx cap run ios -l --external"
+    "mobile:ios:run": "npx cap run ios -l --external"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.1",

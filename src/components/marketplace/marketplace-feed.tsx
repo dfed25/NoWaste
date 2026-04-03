@@ -32,15 +32,17 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
   const [savedOnly, setSavedOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const didRestoreSaved = useRef(false);
+  const didEmitSavedChangeAfterHydration = useRef(false);
   const [sourceListings, setSourceListings] = useState<ListingItem[]>(
-    initialListings && initialListings.length > 0 ? initialListings : fallbackListings,
+    initialListings ?? fallbackListings,
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(initialListings === undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialListings && initialListings.length > 0) {
+    if (initialListings !== undefined) {
       setSourceListings(initialListings);
+      setLoadError(null);
       setIsLoading(false);
       return;
     }
@@ -90,6 +92,11 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
 
   useEffect(() => {
     if (!didRestoreSaved.current) return;
+    if (!didEmitSavedChangeAfterHydration.current) {
+      didEmitSavedChangeAfterHydration.current = true;
+      return;
+    }
+
     writeSavedListingIdsToStorage(window.localStorage, savedIds);
     notifySavedListingsChanged();
   }, [savedIds]);
