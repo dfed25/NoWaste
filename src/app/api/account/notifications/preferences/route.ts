@@ -72,10 +72,9 @@ function withCustomerCookie(response: NextResponse, encodedCookieValue?: string)
   return response;
 }
 
-export async function GET(request: Request) {
-  let resolved: ResolvedCustomer;
+async function handleResolvedCustomer(request: Request): Promise<ResolvedCustomer | NextResponse> {
   try {
-    resolved = await resolveCustomer(request);
+    return await resolveCustomer(request);
   } catch (error) {
     console.error("Failed to resolve customer for notification preferences", error);
     return NextResponse.json(
@@ -83,6 +82,11 @@ export async function GET(request: Request) {
       { status: 503 },
     );
   }
+}
+
+export async function GET(request: Request) {
+  const resolved = await handleResolvedCustomer(request);
+  if (resolved instanceof NextResponse) return resolved;
 
   try {
     const preference = await getNotificationPreferences(resolved.customerId);
@@ -95,16 +99,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  let resolved: ResolvedCustomer;
-  try {
-    resolved = await resolveCustomer(request);
-  } catch (error) {
-    console.error("Failed to resolve customer for notification preferences", error);
-    return NextResponse.json(
-      { error: "Notification preferences are temporarily unavailable" },
-      { status: 503 },
-    );
-  }
+  const resolved = await handleResolvedCustomer(request);
+  if (resolved instanceof NextResponse) return resolved;
 
   let body: unknown;
   try {
