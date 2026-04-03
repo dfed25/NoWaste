@@ -34,6 +34,20 @@ Open [http://localhost:3000](http://localhost:3000). Use responsive mode in your
 
 **Prerequisites:** Xcode with iOS Simulator, CocoaPods (`sudo gem install cocoapods` if the iOS project asks for it).
 
+**`mobile:sync` / `pod install` needs full Xcode, not only Command Line Tools.** If Capacitor fails with:
+
+`xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance`
+
+then macOS is using the CLT bundle instead of **Xcode.app**. Fix it (after installing Xcode from the App Store if needed):
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -runFirstLaunch
+xcodebuild -version
+```
+
+Open **Xcode** once so it can finish installing components, then run `npm run mobile:sync` again.
+
 **One-time native project:**
 
 ```bash
