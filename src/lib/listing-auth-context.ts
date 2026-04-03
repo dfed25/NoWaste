@@ -20,11 +20,10 @@ export async function resolveListingAuthContext(request: Request): Promise<Listi
 
   const cookieStore = await cookies();
   const role = verified.user.role;
-  // Fail closed in production until restaurant scope is bound to a verified server session payload.
+  // Staff scope comes from the restaurant id cookie once the session is verified; replace with
+  // server-stored restaurant binding when user profiles carry restaurantId.
   const scopedRestaurantId =
-    role === "restaurant_staff" && process.env.NODE_ENV !== "production"
-      ? cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value
-      : undefined;
+    role === "restaurant_staff" ? cookieStore.get(RESTAURANT_ID_COOKIE_NAME)?.value : undefined;
 
   return {
     isAuthenticated: true,

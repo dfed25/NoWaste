@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { CustomerOrder } from "@/lib/marketplace";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,8 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const refreshAbortRef = useRef<AbortController | null>(null);
+  const refreshSeqRef = useRef(0);
 
   const loadUrl = useMemo(() => {
     if (showAdminRestaurantPicker && adminRestaurantId) {
@@ -55,16 +57,24 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
   }, [adminRestaurantId, showAdminRestaurantPicker]);
 
   const refresh = useCallback(async () => {
+    refreshAbortRef.current?.abort();
+    const controller = new AbortController();
+    refreshAbortRef.current = controller;
+    const seq = ++refreshSeqRef.current;
+
     setError(null);
     setIsLoading(true);
     try {
-      const response = await fetch(loadUrl, { cache: "no-store" });
+      const response = await fetch(loadUrl, { cache: "no-store", signal: controller.signal });
       const payload = (await response.json().catch(() => ({}))) as {
         orders?: CustomerOrder[];
         error?: string;
       };
 
+      if (seq !== refreshSeqRef.current) return;
+
       if (response.status === 400 && /restaurantId/i.test(payload.error ?? "")) {
+        if (seq !== refreshSeqRef.current) return;
         if (!restaurantChoices.length) {
           throw new Error("No restaurants are configured to scope admin reservations.");
         }
@@ -80,11 +90,16 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
       if (!response.ok) {
         throw new Error(payload.error ?? "Could not load reservations");
       }
+      if (seq !== refreshSeqRef.current) return;
       setOrders(Array.isArray(payload.orders) ? payload.orders : []);
     } catch (loadError) {
+      if (loadError instanceof DOMException && loadError.name === "AbortError") return;
+      if (seq !== refreshSeqRef.current) return;
       setError(loadError instanceof Error ? loadError.message : "Could not load reservations");
     } finally {
-      setIsLoading(false);
+      if (seq === refreshSeqRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [adminRestaurantId, loadUrl, restaurantChoices]);
 
@@ -183,7 +198,13 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
             <select
               className="h-10 rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               value={adminRestaurantId}
-              onChange={(e) => setAdminRestaurantId(e.target.value)}
+              onChange={(e) => {
+                refreshAbortRef.current?.abort();
+                setOrders([]);
+                setIsLoading(true);
+                setError(null);
+                setAdminRestaurantId(e.target.value);
+              }}
             >
               {restaurantChoices.map((r) => (
                 <option key={r.id} value={r.id}>

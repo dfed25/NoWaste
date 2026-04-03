@@ -15,8 +15,8 @@ function canManageFulfillment(role: string | undefined) {
 }
 
 function canActOnOrder(context: ListingAuthContext, orderRestaurantId: string | undefined): boolean {
-  if (!orderRestaurantId) return false;
   if (context.role === "admin") return true;
+  if (!orderRestaurantId) return false;
   if (context.role === "restaurant_staff" && context.scopedRestaurantId === orderRestaurantId) {
     return true;
   }
