@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
+import type { CustomerOrder } from "@/lib/marketplace";
 import {
   cancelOrder,
   createReservedOrder,
@@ -77,7 +78,7 @@ describe("order-store", () => {
     });
 
     const listed = await listOrdersForRestaurant("r_staff");
-    expect(listed.some((o) => o.id === created.id)).toBe(true);
+    expect(listed.some((o: CustomerOrder) => o.id === created.id)).toBe(true);
 
     const picked = await updateOrderFulfillment(created.id, "picked_up");
     expect(picked?.fulfillmentStatus).toBe("picked_up");
