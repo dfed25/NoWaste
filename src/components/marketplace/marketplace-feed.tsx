@@ -17,6 +17,13 @@ import {
 
 type SortBy = "recommended" | "price_low" | "price_high" | "distance" | "pickup_soon";
 
+type AccountDefaultsResponse = {
+  profile?: {
+    dietaryPreferences?: Array<"vegan" | "vegetarian" | "gluten_free" | "dairy_free">;
+    defaultMaxDistanceMiles?: number;
+  };
+};
+
 type MarketplaceFeedProps = {
   initialListings?: ListingItem[];
 };
@@ -33,6 +40,7 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const didRestoreSaved = useRef(false);
   const didEmitSavedChangeAfterHydration = useRef(false);
+  const didApplyAccountDefaults = useRef(false);
   const [sourceListings, setSourceListings] = useState<ListingItem[]>(
     initialListings ?? fallbackListings,
   );
@@ -79,6 +87,49 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
       isMounted = false;
     };
   }, [initialListings]);
+
+
+  useEffect(() => {
+    if (didApplyAccountDefaults.current) return;
+
+    let mounted = true;
+
+    async function applyAccountDefaults() {
+      try {
+        const response = await fetch("/api/account/me", { cache: "no-store" });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as AccountDefaultsResponse;
+        const profile = payload.profile;
+        if (!mounted || !profile) return;
+
+        if (
+          maxDistanceMiles === "" &&
+          typeof profile.defaultMaxDistanceMiles === "number" &&
+          profile.defaultMaxDistanceMiles > 0
+        ) {
+          setMaxDistanceMiles(profile.defaultMaxDistanceMiles);
+        }
+
+        if (
+          dietary === "any" &&
+          Array.isArray(profile.dietaryPreferences) &&
+          profile.dietaryPreferences.length > 0
+        ) {
+          setDietary(profile.dietaryPreferences[0]);
+        }
+      } catch {
+        // Best-effort defaults only.
+      } finally {
+        didApplyAccountDefaults.current = true;
+      }
+    }
+
+    void applyAccountDefaults();
+    return () => {
+      mounted = false;
+    };
+  }, [dietary, maxDistanceMiles]);
 
   useEffect(() => {
     try {
