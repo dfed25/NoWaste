@@ -18,6 +18,17 @@ type ResolvedCustomer = {
   encodedCookieValue?: string;
 };
 
+function encodeCustomerCookieValue(customerId: string): string {
+  const encoded = encodeSignedCustomerId(customerId);
+  if (encoded) return encoded;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("customer-id signing secret is required in production");
+  }
+
+  return customerId;
+}
+
 async function resolveCustomer(request: Request): Promise<ResolvedCustomer> {
   try {
     const cookieStore = await cookies();
@@ -25,7 +36,7 @@ async function resolveCustomer(request: Request): Promise<ResolvedCustomer> {
     const parsed = parseCustomerIdCookie(rawValue);
     if (parsed.customerId) {
       if (parsed.needsResign) {
-        const encoded = encodeSignedCustomerId(parsed.customerId) ?? parsed.customerId;
+        const encoded = encodeCustomerCookieValue(parsed.customerId);
         return { customerId: parsed.customerId, encodedCookieValue: encoded };
       }
       return { customerId: parsed.customerId };
@@ -37,14 +48,14 @@ async function resolveCustomer(request: Request): Promise<ResolvedCustomer> {
   const fallback = parseCustomerIdCookieFromCookieHeader(request);
   if (fallback.customerId) {
     if (fallback.needsResign) {
-      const encoded = encodeSignedCustomerId(fallback.customerId) ?? fallback.customerId;
+      const encoded = encodeCustomerCookieValue(fallback.customerId);
       return { customerId: fallback.customerId, encodedCookieValue: encoded };
     }
     return { customerId: fallback.customerId };
   }
 
   const customerId = createCustomerId();
-  const encodedCookieValue = encodeSignedCustomerId(customerId) ?? customerId;
+  const encodedCookieValue = encodeCustomerCookieValue(customerId);
   return { customerId, encodedCookieValue };
 }
 
@@ -62,7 +73,16 @@ function withCustomerCookie(response: NextResponse, encodedCookieValue?: string)
 }
 
 export async function GET(request: Request) {
-  const resolved = await resolveCustomer(request);
+  let resolved: ResolvedCustomer;
+  try {
+    resolved = await resolveCustomer(request);
+  } catch (error) {
+    console.error("Failed to resolve customer for notification preferences", error);
+    return NextResponse.json(
+      { error: "Notification preferences are temporarily unavailable" },
+      { status: 503 },
+    );
+  }
 
   try {
     const preference = await getNotificationPreferences(resolved.customerId);
@@ -75,7 +95,16 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const resolved = await resolveCustomer(request);
+  let resolved: ResolvedCustomer;
+  try {
+    resolved = await resolveCustomer(request);
+  } catch (error) {
+    console.error("Failed to resolve customer for notification preferences", error);
+    return NextResponse.json(
+      { error: "Notification preferences are temporarily unavailable" },
+      { status: 503 },
+    );
+  }
 
   let body: unknown;
   try {
