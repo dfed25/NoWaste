@@ -10,6 +10,20 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
+import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
+
+type AppRole = "customer" | "restaurant_staff";
+
+function normalizeRole(value: string | null | undefined): AppRole | undefined {
+  if (!value) return undefined;
+  if (value === "customer") return "customer";
+  if (value === "restaurant" || value === "restaurant_staff") return "restaurant_staff";
+  return undefined;
+}
+
+function routeForRole(role: AppRole) {
+  return role === "restaurant_staff" ? "/dashboard" : "/";
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -32,7 +46,7 @@ export function LoginForm() {
     setIsSubmitting(true);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -51,11 +65,21 @@ export function LoginForm() {
         title: "Logged in",
       });
 
-      const next =
+      const query =
         typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("next") ||
-            "/dashboard"
-          : "/dashboard";
+          ? new URLSearchParams(window.location.search)
+          : new URLSearchParams();
+
+      const requestedRole = normalizeRole(query.get("role"));
+      const metadataRole = normalizeRole(
+        (data.user?.user_metadata?.app_role as string | undefined) ??
+          (data.user?.user_metadata?.role as string | undefined),
+      );
+
+      const role = metadataRole ?? requestedRole ?? "customer";
+      document.cookie = `${ADMIN_ROLE_COOKIE}=${role}; Path=/; Max-Age=604800; SameSite=Lax`;
+
+      const next = query.get("next") ?? routeForRole(role);
       router.push(next);
       router.refresh();
     } catch (error) {
@@ -92,11 +116,10 @@ export function LoginForm() {
         <Link href="/auth/reset-password" className="hover:text-neutral-900">
           Forgot password?
         </Link>
-        <Link href="/auth/sign-up" className="hover:text-neutral-900">
-          Create account
+        <Link href="/get-started" className="hover:text-neutral-900">
+          Choose role
         </Link>
       </div>
     </form>
   );
 }
-

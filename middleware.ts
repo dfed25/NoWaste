@@ -15,6 +15,13 @@ const authPages = ["/auth/login", "/auth/sign-up", "/auth/reset-password"];
 
 const AUTH_COOKIE_NAME = "nw-authenticated";
 
+function routeForRole(role?: string) {
+  if (role === "restaurant_staff" || role === "admin") {
+    return "/dashboard";
+  }
+  return "/";
+}
+
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAuthenticated = request.cookies.get(AUTH_COOKIE_NAME)?.value === "1";
@@ -23,6 +30,14 @@ export function middleware(request: NextRequest) {
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
     pathname.startsWith(prefix),
   );
+
+  if (pathname === "/" && !isAuthenticated) {
+    return NextResponse.redirect(new URL("/get-started", request.url));
+  }
+
+  if (pathname === "/get-started" && isAuthenticated) {
+    return NextResponse.redirect(new URL(routeForRole(role), request.url));
+  }
 
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL("/auth/login", request.url);
@@ -36,7 +51,7 @@ export function middleware(request: NextRequest) {
 
   const isAuthPage = authPages.some((page) => pathname.startsWith(page));
   if (isAuthPage && isAuthenticated) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL(routeForRole(role), request.url));
   }
 
   return NextResponse.next();
@@ -44,6 +59,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
+    "/get-started",
     "/dashboard/:path*",
     "/account/:path*",
     "/onboarding/:path*",
@@ -53,4 +70,3 @@ export const config = {
     "/auth/:path*",
   ],
 };
-

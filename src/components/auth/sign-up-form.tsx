@@ -10,8 +10,19 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { signUpSchema, type SignUpInput } from "@/lib/validation";
+import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
 
-export function SignUpForm() {
+type AppRole = "customer" | "restaurant_staff";
+
+type Props = {
+  role: AppRole;
+};
+
+function roleLabel(role: AppRole) {
+  return role === "restaurant_staff" ? "Restaurant" : "Customer";
+}
+
+export function SignUpForm({ role }: Props) {
   const router = useRouter();
   const { pushToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,6 +50,7 @@ export function SignUpForm() {
         options: {
           data: {
             display_name: values.name,
+            app_role: role,
           },
         },
       });
@@ -52,12 +64,14 @@ export function SignUpForm() {
         return;
       }
 
+      document.cookie = `${ADMIN_ROLE_COOKIE}=${role}; Path=/; Max-Age=604800; SameSite=Lax`;
+
       pushToast({
         tone: "success",
         title: "Account created",
         description: "Check your inbox if email confirmation is enabled.",
       });
-      router.push("/auth/login");
+      router.push(`/auth/login?role=${encodeURIComponent(role)}`);
     } catch (error) {
       pushToast({
         tone: "error",
@@ -71,6 +85,7 @@ export function SignUpForm() {
 
   return (
     <form className="space-y-3" onSubmit={onSubmit}>
+      <p className="text-xs font-medium text-brand-700">Signing up as: {roleLabel(role)}</p>
       <Input
         label="Full name"
         autoComplete="name"
@@ -96,11 +111,10 @@ export function SignUpForm() {
       </Button>
       <p className="text-xs text-neutral-600">
         Already have an account?{" "}
-        <Link href="/auth/login" className="underline">
+        <Link href={`/auth/login?role=${encodeURIComponent(role)}`} className="underline">
           Log in
         </Link>
       </p>
     </form>
   );
 }
-
