@@ -48,7 +48,7 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
   const [showAdminRestaurantPicker, setShowAdminRestaurantPicker] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const [mutatingIds, setMutatingIds] = useState<Set<string>>(() => new Set());
   const refreshAbortRef = useRef<AbortController | null>(null);
   const refreshSeqRef = useRef(0);
 
@@ -59,7 +59,11 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
     return "/api/orders/restaurant";
   }, [adminRestaurantId, showAdminRestaurantPicker]);
 
+  const currentScopeRef = useRef(loadUrl);
+  currentScopeRef.current = loadUrl;
+
   const refresh = useCallback(async () => {
+    const scopeAtStart = loadUrl;
     refreshAbortRef.current?.abort();
     const controller = new AbortController();
     refreshAbortRef.current = controller;
@@ -68,7 +72,9 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
     setError(null);
     setIsLoading(true);
     try {
-      const response = await fetch(loadUrl, { cache: "no-store", signal: controller.signal });
+      const response = await fetch(scopeAtStart, { cache: "no-store", signal: controller.signal });
+      if (currentScopeRef.current !== scopeAtStart) return;
+
       const payload = (await response.json().catch(() => ({}))) as {
         orders?: CustomerOrder[];
         error?: string;
@@ -76,12 +82,14 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
       };
 
       if (seq !== refreshSeqRef.current) return;
+      if (currentScopeRef.current !== scopeAtStart) return;
 
       if (
         response.status === 400 &&
         payload.code === OrderApiErrorCode.ADMIN_RESTAURANT_ID_REQUIRED
       ) {
         if (seq !== refreshSeqRef.current) return;
+        if (currentScopeRef.current !== scopeAtStart) return;
         if (!restaurantChoices.length) {
           throw new Error("No restaurants are configured to scope admin reservations.");
         }
@@ -98,10 +106,12 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
         throw new Error(payload.error ?? "Could not load reservations");
       }
       if (seq !== refreshSeqRef.current) return;
+      if (currentScopeRef.current !== scopeAtStart) return;
       setOrders(Array.isArray(payload.orders) ? payload.orders : []);
     } catch (loadError) {
       if (loadError instanceof DOMException && loadError.name === "AbortError") return;
       if (seq !== refreshSeqRef.current) return;
+      if (currentScopeRef.current !== scopeAtStart) return;
       setError(loadError instanceof Error ? loadError.message : "Could not load reservations");
     } finally {
       if (seq === refreshSeqRef.current) {
@@ -115,10 +125,11 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
   }, [refresh]);
 
   async function setFulfillment(orderId: string, status: "picked_up" | "missed_pickup") {
+    const requestScope = loadUrl;
     const label = status === "picked_up" ? "mark this order as picked up" : "record a no-show for this order";
     if (!window.confirm(`Confirm: ${label}?`)) return;
 
-    setMutatingId(orderId);
+    setMutatingIds((prev) => new Set(prev).add(orderId));
     setError(null);
     try {
       const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/fulfillment`, {
@@ -126,23 +137,36 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
+      if (currentScopeRef.current !== requestScope) return;
+
       const payload = (await response.json().catch(() => ({}))) as {
         order?: CustomerOrder;
         error?: string;
       };
+      if (currentScopeRef.current !== requestScope) return;
+
       if (!response.ok) {
-        if (response.status === 404 || response.status === 409) {
+        if (
+          (response.status === 404 || response.status === 409) &&
+          currentScopeRef.current === requestScope
+        ) {
           await refresh();
         }
+        if (currentScopeRef.current !== requestScope) return;
         throw new Error(payload.error ?? "Update failed");
       }
-      if (payload.order) {
+      if (payload.order && currentScopeRef.current === requestScope) {
         setOrders((prev) => prev.map((o) => (o.id === orderId ? payload.order! : o)));
       }
     } catch (e) {
+      if (currentScopeRef.current !== requestScope) return;
       setError(e instanceof Error ? e.message : "Update failed");
     } finally {
-      setMutatingId(null);
+      setMutatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
     }
   }
 
@@ -292,7 +316,7 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
         ) : (
           <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-100">
             {filtered.map((order) => {
-              const busy = mutatingId === order.id;
+              const busy = mutatingIds.has(order.id);
               return (
                 <li key={order.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
