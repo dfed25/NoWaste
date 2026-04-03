@@ -207,9 +207,10 @@ export function RestaurantListingsManager() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <label className="flex flex-col gap-1.5 text-sm">
+          <label htmlFor="status-filter-select" className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-neutral-800">Status filter</span>
             <select
+              id="status-filter-select"
               className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-900"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}

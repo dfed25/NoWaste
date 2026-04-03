@@ -133,7 +133,7 @@ function normalizeManagedListing(value: unknown): ManagedListing | null {
     return null;
   }
 
-  const quantityTotal = asPositiveNumber(record.quantityTotal) ?? quantityRemaining;
+  const quantityTotal = asPositiveNumber(record.quantityTotal) ?? Math.max(1, quantityRemaining);
   const fallbackCutoff = new Date(new Date(pickupWindowStart).getTime() - 30 * 60 * 1000).toISOString();
   const reservationCutoffAt = asIsoDate(record.reservationCutoffAt) ?? fallbackCutoff;
   const updatedAt = asIsoDate(record.updatedAt) ?? new Date().toISOString();

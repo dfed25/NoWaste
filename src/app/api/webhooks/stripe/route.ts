@@ -34,6 +34,10 @@ export async function POST(request: Request) {
       const orderId = session.metadata?.orderId;
       if (orderId) {
         await updateOrderPaymentStatus(orderId, "paid");
+      } else {
+        console.warn("checkout.session.completed missing orderId metadata", {
+          sessionId: session.id,
+        });
       }
     }
   } catch (error) {
