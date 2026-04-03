@@ -52,6 +52,14 @@ export const listingSchema = z.object({
   },
 );
 
+
+const dietaryPreferenceSchema = z.enum([
+  "vegan",
+  "vegetarian",
+  "gluten_free",
+  "dairy_free",
+]);
+
 export const restaurantOnboardingSchema = z.object({
   restaurantName: z.string().min(2, "Restaurant name is required"),
   addressLine1: z.string().min(3, "Address is required"),
@@ -78,6 +86,9 @@ export const accountSettingsSchema = z.object({
   displayName: z.string().min(2, "Display name is required"),
   email: z.email("Valid email is required"),
   phone: z.string().min(7, "Valid phone number is required"),
+  dietaryPreferences: z.array(dietaryPreferenceSchema),
+  defaultMaxDistanceMiles: z.number().int().min(1).max(50),
+  marketingOptIn: z.boolean(),
 });
 
 export const pickupVerificationSchema = z.object({

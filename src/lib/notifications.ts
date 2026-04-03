@@ -19,22 +19,26 @@ export type NotificationPreference = {
   events: NotificationEvent[];
 };
 
-export const defaultNotificationPreferences: NotificationPreference = {
-  email: true,
-  sms: false,
-  events: [
-    "reservation_confirmed",
-    "pickup_reminder",
-    "reservation_canceled",
-    "listing_sold_out",
-    "new_reservation",
-    "pickup_completed",
-    "donation_fallback_triggered",
-    "donation_available",
-    "donation_claimed",
-    "donation_pickup_reminder",
-  ],
-};
+export const DEFAULT_NOTIFICATION_EVENTS = Object.freeze<NotificationEvent[]>([
+  "reservation_confirmed",
+  "pickup_reminder",
+  "reservation_canceled",
+  "listing_sold_out",
+  "new_reservation",
+  "pickup_completed",
+  "donation_fallback_triggered",
+  "donation_available",
+  "donation_claimed",
+  "donation_pickup_reminder",
+]);
+
+export function createDefaultNotificationPreferences(): NotificationPreference {
+  return {
+    email: true,
+    sms: false,
+    events: [...DEFAULT_NOTIFICATION_EVENTS],
+  };
+}
 
 const eventMessageMap: Record<NotificationEvent, string> = {
   reservation_confirmed: "Your reservation is confirmed.",
@@ -91,20 +95,23 @@ export async function dispatchEventNotification(input: {
   toPhone?: string;
   preference?: NotificationPreference;
 }): Promise<NotificationResult[]> {
-  const preference = input.preference ?? defaultNotificationPreferences;
+  const preference = input.preference ?? createDefaultNotificationPreferences();
   if (!preference.events.includes(input.event)) return [];
 
   const message = eventMessageMap[input.event];
-  const results: NotificationResult[] = [];
+  const tasks: Promise<NotificationResult>[] = [];
 
   if (preference.email && input.toEmail) {
-    results.push(await sendEmail(input.toEmail, "NoWaste notification", message));
+    tasks.push(sendEmail(input.toEmail, "NoWaste notification", message));
   }
 
   if (preference.sms && input.toPhone) {
-    results.push(await sendSmsPlaceholder(input.toPhone, message));
+    tasks.push(sendSmsPlaceholder(input.toPhone, message));
   }
 
-  return results;
+  const settled = await Promise.allSettled(tasks);
+  return settled.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
 }
 

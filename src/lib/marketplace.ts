@@ -52,8 +52,8 @@ export type CustomerOrder = {
   pickupWindowStart: string;
   pickupWindowEnd: string;
   createdAt: string;
-  fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired";
-  paymentStatus: "paid" | "refunded" | "pending";
+  fulfillmentStatus: "reserved" | "picked_up" | "missed_pickup" | "expired" | "canceled";
+  paymentStatus: "paid" | "refunded" | "pending" | "failed";
   reservationCode: string;
 };
 
@@ -228,7 +228,7 @@ export function canCancelOrder(order: CustomerOrder, now = new Date()) {
 }
 
 export function qualifiesForRefund(order: CustomerOrder) {
-  return order.fulfillmentStatus === "expired" || order.fulfillmentStatus === "missed_pickup";
+  return order.fulfillmentStatus === "expired" || order.fulfillmentStatus === "missed_pickup" || order.fulfillmentStatus === "canceled";
 }
 
 export function editListing(

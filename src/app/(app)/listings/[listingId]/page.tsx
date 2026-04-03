@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { getListingById } from "@/lib/marketplace";
+import { LocalTime } from "@/components/common/local-time";
+import { getListingByIdFromStore } from "@/lib/marketplace-store";
 
 type ListingDetailPageProps = {
   params: Promise<{ listingId: string }>;
@@ -11,55 +11,76 @@ type ListingDetailPageProps = {
 
 export default async function ListingDetailPage({ params }: ListingDetailPageProps) {
   const { listingId } = await params;
-  const listing = getListingById(listingId);
+  const listing = await getListingByIdFromStore(listingId);
   if (!listing) notFound();
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h1 className="text-title-lg">{listing.title}</h1>
-        <p className="text-body-sm text-neutral-600">{listing.restaurantName}</p>
-      </div>
-
-      <Card className="space-y-3">
-        <p className="text-sm text-neutral-700">{listing.description}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {listing.dietary.map((tag) => (
-            <Badge key={tag} variant="neutral">
-              {tag.replace("_", " ")}
-            </Badge>
-          ))}
+    <section className="space-y-5">
+      <Card
+        variant="elevated"
+        className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/25"
+      >
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="brand">{listing.quantityRemaining} left</Badge>
+            <Badge variant="neutral">{listing.restaurantName}</Badge>
+          </div>
+          <h1 className="text-title-lg text-neutral-900">{listing.title}</h1>
+          <p className="text-body-md text-neutral-600">{listing.description}</p>
         </div>
-        <p className="text-sm text-neutral-700">
-          Price: <strong>${(listing.priceCents / 100).toFixed(2)}</strong>
-        </p>
-        <p className="text-sm text-neutral-700">
-          Pickup window:{" "}
-          <strong>
-            {new Date(listing.pickupWindowStart).toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}{" "}
-            -{" "}
-            {new Date(listing.pickupWindowEnd).toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}
-          </strong>
-        </p>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="border-neutral-200/80">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Price</p>
+            <p className="mt-1 text-base font-semibold text-neutral-900">
+              ${(listing.priceCents / 100).toFixed(2)}
+            </p>
+          </Card>
+          <Card className="border-neutral-200/80">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Distance</p>
+            <p className="mt-1 text-base font-semibold text-neutral-900">{listing.distanceMiles} miles</p>
+          </Card>
+          <Card className="border-neutral-200/80">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Pickup</p>
+            <p className="mt-1 text-base font-semibold text-neutral-900">
+              <LocalTime value={listing.pickupWindowStart} options={{ hour: "numeric", minute: "2-digit" }} />
+            </p>
+          </Card>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {listing.dietary.length > 0 ? (
+            listing.dietary.map((tag) => (
+              <Badge key={tag} variant="neutral">
+                {tag.replace("_", " ")}
+              </Badge>
+            ))
+          ) : (
+            <Badge variant="neutral">chef selection</Badge>
+          )}
+        </div>
+
         {listing.allergyNotes ? (
-          <p className="text-sm text-neutral-700">Allergy notes: {listing.allergyNotes}</p>
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Allergy notes: {listing.allergyNotes}
+          </p>
         ) : null}
-        <div className="flex gap-2">
-          <Link href={`/checkout/${listing.id}`}>
-            <Button>Reserve & checkout</Button>
+
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/checkout/${listing.id}`}
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          >
+            Reserve and checkout
           </Link>
-          <Link href={`/restaurants/${listing.restaurantId}`}>
-            <Button variant="secondary">Restaurant details</Button>
+          <Link
+            href={`/restaurants/${listing.restaurantId}`}
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 focus-visible:ring-offset-2"
+          >
+            Restaurant details
           </Link>
         </div>
       </Card>
     </section>
   );
 }
-

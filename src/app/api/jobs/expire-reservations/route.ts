@@ -24,10 +24,20 @@ export async function POST(request: Request) {
   }));
 
   const updated = expireStaleReservations(input);
-  const expiredCount = updated.filter((order, index) => {
-    const previous = input[index];
-    return previous?.fulfillmentStatus !== "expired" && order.fulfillmentStatus === "expired";
+  const previousById = new Map(input.map((order) => [order.id, order.fulfillmentStatus]));
+  const expiredCount = updated.filter((order) => {
+    const previous = previousById.get(order.id);
+    return previous !== "expired" && order.fulfillmentStatus === "expired";
   }).length;
+
+  // Persist status transitions back into the mock store.
+  for (const nextOrder of updated) {
+    const current = mockOrders.find((order) => order.id === nextOrder.id);
+    if (!current) continue;
+    if (current.fulfillmentStatus !== nextOrder.fulfillmentStatus) {
+      current.fulfillmentStatus = nextOrder.fulfillmentStatus;
+    }
+  }
 
   return NextResponse.json({
     ok: true,
