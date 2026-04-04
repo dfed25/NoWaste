@@ -5,6 +5,10 @@ import path from "node:path";
 import { createRunExclusive } from "@/lib/file-queue";
 import type { PickupAuditEvent, PickupEventType } from "@/lib/pickup";
 
+/**
+ * Append-only pickup audit trail in `.nowaste-data/pickup-audit.json` (serialized writes).
+ */
+
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const AUDIT_FILE = path.join(DATA_DIR, "pickup-audit.json");
 
@@ -74,6 +78,7 @@ async function writeFileShape(data: FileShape) {
   }
 }
 
+/** Whether an audit row already exists for this restaurant, order, and event type. */
 export async function hasPickupAuditEvent(
   restaurantId: string,
   orderId: string,
@@ -85,6 +90,7 @@ export async function hasPickupAuditEvent(
   );
 }
 
+/** Prepends a new audit event and returns the public (non–restaurant-scoped) shape. */
 export async function appendPickupAuditEvent(input: {
   restaurantId: string;
   orderId: string;
@@ -109,6 +115,7 @@ export async function appendPickupAuditEvent(input: {
   });
 }
 
+/** Lists events for a staff restaurant scope, or all events for admin. */
 export async function listPickupAuditEventsForScope(options: {
   restaurantId: string | null;
   isAdmin: boolean;

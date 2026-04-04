@@ -131,34 +131,27 @@ export function PickupVerificationConsole() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: selectedFull.id, type: outcome }),
       });
+      const auditPayload = (await auditResponse.json().catch(() => ({}))) as {
+        error?: string;
+        event?: PickupAuditEvent;
+        order?: CustomerOrder;
+      };
       if (!auditResponse.ok) {
-        const payload = (await auditResponse.json().catch(() => ({}))) as { error?: string };
-        setVerificationMessage(payload.error || "Unable to record pickup audit.");
+        setVerificationMessage(auditPayload.error || "Unable to finalize pickup.");
         return;
       }
-      const auditPayload = (await auditResponse.json().catch(() => ({}))) as {
-        event?: PickupAuditEvent;
-      };
       if (auditPayload.event) {
         setAuditEvents((prev) => [auditPayload.event!, ...prev]);
       }
-
-      const response = await fetch(`/api/orders/${selectedFull.id}/fulfillment`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: outcome }),
-      });
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        setVerificationMessage(
-          payload.error ||
-            "Order was not updated after audit; refresh and verify inventory.",
-        );
-        return;
-      }
+      const nextOrder = auditPayload.order;
       setRawOrders((prev) =>
-        prev.map((o) => (o.id === optimistic.id ? { ...o, fulfillmentStatus: optimistic.fulfillmentStatus } : o)),
+        prev.map((o) =>
+          o.id === selectedFull.id
+            ? nextOrder
+              ? nextOrder
+              : { ...o, fulfillmentStatus: optimistic.fulfillmentStatus }
+            : o,
+        ),
       );
       setVerificationMessage(`Order marked as ${outcome.replaceAll("_", " ")}.`);
     } catch {
