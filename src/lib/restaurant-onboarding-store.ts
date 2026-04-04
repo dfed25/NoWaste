@@ -2,21 +2,13 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
+import { createRunExclusive } from "@/lib/file-queue";
 import type { RestaurantOnboardingInput } from "@/lib/validation";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const FILE = path.join(DATA_DIR, "restaurant-onboarding.json");
 
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-function runExclusive<T>(operation: () => Promise<T>) {
-  const next = writeQueue.then(operation, operation);
-  writeQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
-}
+const runExclusive = createRunExclusive();
 
 type OnboardingRow = {
   data: RestaurantOnboardingInput;

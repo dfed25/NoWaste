@@ -1,16 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import type { StatusIndicatorStatus } from "@/lib/status-indicator-status";
 
-export type StatusIndicatorStatus =
-  | "draft"
-  | "active"
-  | "reserved"
-  | "picked_up"
-  | "missed_pickup"
-  | "expired"
-  | "donation_eligible"
-  | "donation_claimed"
-  | "donated"
-  | "donation_failed";
+export type { StatusIndicatorStatus } from "@/lib/status-indicator-status";
 
 const statusVariantMap: Record<
   StatusIndicatorStatus,
@@ -39,4 +30,3 @@ export function StatusIndicator({ status }: Props) {
     </Badge>
   );
 }
-

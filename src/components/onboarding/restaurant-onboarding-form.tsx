@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,21 @@ const defaultValues: RestaurantOnboardingInput = {
   paymentOnboardingStatus: "not_started",
 };
 
-export function RestaurantOnboardingForm() {
+function onboardingApiUrl(adminRestaurantId?: string) {
+  const base = "/api/onboarding/restaurant";
+  if (adminRestaurantId) {
+    return `${base}?restaurantId=${encodeURIComponent(adminRestaurantId)}`;
+  }
+  return base;
+}
+
+type Props = {
+  adminRestaurantId?: string;
+};
+
+export function RestaurantOnboardingForm({ adminRestaurantId }: Props) {
   const { pushToast } = useToast();
+  const apiUrl = useMemo(() => onboardingApiUrl(adminRestaurantId), [adminRestaurantId]);
   const {
     register,
     handleSubmit,
@@ -45,23 +58,23 @@ export function RestaurantOnboardingForm() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/onboarding/restaurant", { credentials: "include" })
+    fetch(apiUrl, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload: { draft?: { data: RestaurantOnboardingInput } } | null) => {
         if (cancelled || !payload?.draft?.data) return;
-        reset(payload.draft.data);
+        reset(payload.draft.data, { keepDirtyValues: true });
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [reset]);
+  }, [apiUrl, reset]);
 
   return (
     <form
       className="space-y-4"
       onSubmit={handleSubmit(async (values) => {
-        const response = await fetch("/api/onboarding/restaurant", {
+        const response = await fetch(apiUrl, {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

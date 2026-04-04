@@ -9,9 +9,9 @@ import type {
 } from "@/lib/restaurant-dashboard-metrics";
 
 type Props = {
-  metrics: RestaurantDashboardMetrics | null;
+  metrics: RestaurantDashboardMetrics;
   activity: DashboardActivityItem[];
-  tonightListings: TonightListingRow[] | null;
+  tonightListings: TonightListingRow[];
 };
 
 export function RestaurantDashboardShell({ metrics, activity, tonightListings }: Props) {

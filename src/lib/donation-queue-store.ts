@@ -1,22 +1,21 @@
+/**
+ * File-backed donation queue per restaurant id.
+ *
+ * Writes are serialized only within this Node process; `.nowaste-data` is local
+ * disk. Do not rely on this for multi-replica or ephemeral hosting without a
+ * shared store (e.g. Postgres/Redis) and appropriate locking.
+ */
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
+import { createRunExclusive } from "@/lib/file-queue";
 import type { DonationReadyItem } from "@/lib/donation";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const FILE = path.join(DATA_DIR, "donation-queues.json");
 
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-function runExclusive<T>(operation: () => Promise<T>) {
-  const next = writeQueue.then(operation, operation);
-  writeQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
-}
+const runExclusive = createRunExclusive();
 
 type FileShape = Record<string, DonationReadyItem[]>;
 

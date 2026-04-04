@@ -33,6 +33,20 @@ export function PrimaryNavLinks() {
     };
   }, []);
 
+  const roleResolved = role !== undefined;
+
+  if (!roleResolved) {
+    return (
+      <nav
+        className="hidden min-h-5 min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-400 md:flex"
+        aria-busy="true"
+        aria-label="Loading navigation"
+      >
+        <span className="select-none">…</span>
+      </nav>
+    );
+  }
+
   const isStaff = role === "restaurant_staff" || role === "admin";
   const isCustomer = role === "customer";
   const listingsHref = isStaff ? "/listings" : "/";

@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
+import { createRunExclusive } from "@/lib/file-queue";
 import type { PickupAuditEvent, PickupEventType } from "@/lib/pickup";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
@@ -9,16 +10,16 @@ const AUDIT_FILE = path.join(DATA_DIR, "pickup-audit.json");
 
 export type StoredPickupAuditEvent = PickupAuditEvent & { restaurantId: string };
 
-let writeQueue: Promise<unknown> = Promise.resolve();
+const runExclusive = createRunExclusive();
 
-function runExclusive<T>(operation: () => Promise<T>) {
-  const next = writeQueue.then(operation, operation);
-  writeQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
-}
+const VALID_ACTORS = new Set<PickupAuditEvent["actor"]>(["restaurant", "customer", "system"]);
+const VALID_TYPES = new Set<PickupEventType>([
+  "code_verified",
+  "picked_up",
+  "missed_pickup",
+  "expired",
+  "canceled",
+]);
 
 type FileShape = { events: StoredPickupAuditEvent[] };
 
@@ -40,14 +41,20 @@ async function readFileShape(): Promise<FileShape> {
 function isStoredEvent(value: unknown): value is StoredPickupAuditEvent {
   if (!value || typeof value !== "object") return false;
   const e = value as Record<string, unknown>;
-  return (
-    typeof e.id === "string" &&
-    typeof e.orderId === "string" &&
-    typeof e.actor === "string" &&
-    typeof e.type === "string" &&
-    typeof e.at === "string" &&
-    typeof e.restaurantId === "string"
-  );
+  if (
+    typeof e.id !== "string" ||
+    typeof e.orderId !== "string" ||
+    typeof e.actor !== "string" ||
+    typeof e.type !== "string" ||
+    typeof e.at !== "string" ||
+    typeof e.restaurantId !== "string"
+  ) {
+    return false;
+  }
+  if (!VALID_ACTORS.has(e.actor as PickupAuditEvent["actor"])) return false;
+  if (!VALID_TYPES.has(e.type as PickupEventType)) return false;
+  if (e.note !== undefined && typeof e.note !== "string") return false;
+  return true;
 }
 
 async function writeFileShape(data: FileShape) {
@@ -65,6 +72,17 @@ async function writeFileShape(data: FileShape) {
     if (handle) await handle.close().catch(() => undefined);
     await rm(tempFile, { force: true }).catch(() => undefined);
   }
+}
+
+export async function hasPickupAuditEvent(
+  restaurantId: string,
+  orderId: string,
+  type: PickupEventType,
+): Promise<boolean> {
+  const file = await readFileShape();
+  return file.events.some(
+    (ev) => ev.restaurantId === restaurantId && ev.orderId === orderId && ev.type === type,
+  );
 }
 
 export async function appendPickupAuditEvent(input: {

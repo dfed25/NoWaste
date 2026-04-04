@@ -14,19 +14,18 @@ export default async function DashboardPage() {
   if (session.user?.role === "customer") {
     redirect("/");
   }
-
-  let metrics = null;
-  let activity: Awaited<ReturnType<typeof getRestaurantDashboardData>>["activity"] = [];
-  let tonightListings: Awaited<
-    ReturnType<typeof getRestaurantDashboardData>
-  >["tonightListings"] | null = null;
-  const restaurantId = session.user?.scopedRestaurantId;
-  if (session.user?.role === "restaurant_staff" && restaurantId) {
-    const data = await getRestaurantDashboardData(restaurantId);
-    metrics = data.metrics;
-    activity = data.activity;
-    tonightListings = data.tonightListings;
+  if (session.user?.role === "admin") {
+    redirect("/admin");
   }
+  if (session.user?.role !== "restaurant_staff") {
+    redirect("/");
+  }
+  const restaurantId = session.user.scopedRestaurantId;
+  if (!restaurantId) {
+    redirect("/");
+  }
+
+  const data = await getRestaurantDashboardData(restaurantId);
 
   return (
     <section className="space-y-5">
@@ -62,9 +61,9 @@ export default async function DashboardPage() {
       </div>
 
       <RestaurantDashboardShell
-        metrics={metrics}
-        activity={activity}
-        tonightListings={tonightListings}
+        metrics={data.metrics}
+        activity={data.activity}
+        tonightListings={data.tonightListings}
       />
 
       <div className="flex flex-wrap gap-3 text-sm">

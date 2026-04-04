@@ -76,26 +76,29 @@ export function PickupVerificationConsole() {
     return expireStaleReservations(slice);
   }, [rawOrders]);
 
-  const selectedFull = useMemo(
-    () => rawOrders.find((order) => order.id === selectedOrderId) ?? null,
-    [rawOrders, selectedOrderId],
-  );
+  const selectedFull = useMemo(() => {
+    const full = rawOrders.find((order) => order.id === selectedOrderId);
+    const derived = orders.find((order) => order.id === selectedOrderId);
+    if (!full || !derived) return null;
+    return { ...full, fulfillmentStatus: derived.fulfillmentStatus };
+  }, [orders, rawOrders, selectedOrderId]);
 
   async function postAudit(
     orderId: string,
     type: "code_verified" | "picked_up" | "missed_pickup",
-  ) {
+  ): Promise<boolean> {
     const response = await fetch("/api/pickups/audit", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId, type }),
     });
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const payload = (await response.json().catch(() => ({}))) as { event?: PickupAuditEvent };
     if (payload.event) {
       setAuditEvents((prev) => [payload.event!, ...prev]);
     }
+    return true;
   }
 
   async function handleVerify() {
@@ -106,8 +109,12 @@ export function PickupVerificationConsole() {
       setVerificationMessage("Invalid pickup code. Please retry.");
       return;
     }
+    const ok = await postAudit(selectedFull.id, "code_verified");
+    if (!ok) {
+      setVerificationMessage("Could not record verification (duplicate or invalid state).");
+      return;
+    }
     setVerificationMessage("Code verified successfully.");
-    await postAudit(selectedFull.id, "code_verified");
   }
 
   async function setOutcome(outcome: "picked_up" | "missed_pickup") {
@@ -118,6 +125,24 @@ export function PickupVerificationConsole() {
     try {
       const optimistic =
         outcome === "picked_up" ? markPickedUp(slice) : markMissedPickup(slice);
+      const auditResponse = await fetch("/api/pickups/audit", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: selectedFull.id, type: outcome }),
+      });
+      if (!auditResponse.ok) {
+        const payload = (await auditResponse.json().catch(() => ({}))) as { error?: string };
+        setVerificationMessage(payload.error || "Unable to record pickup audit.");
+        return;
+      }
+      const auditPayload = (await auditResponse.json().catch(() => ({}))) as {
+        event?: PickupAuditEvent;
+      };
+      if (auditPayload.event) {
+        setAuditEvents((prev) => [auditPayload.event!, ...prev]);
+      }
+
       const response = await fetch(`/api/orders/${selectedFull.id}/fulfillment`, {
         method: "PATCH",
         credentials: "include",
@@ -126,13 +151,15 @@ export function PickupVerificationConsole() {
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        setVerificationMessage(payload.error || "Unable to update pickup status.");
+        setVerificationMessage(
+          payload.error ||
+            "Order was not updated after audit; refresh and verify inventory.",
+        );
         return;
       }
       setRawOrders((prev) =>
         prev.map((o) => (o.id === optimistic.id ? { ...o, fulfillmentStatus: optimistic.fulfillmentStatus } : o)),
       );
-      await postAudit(selectedFull.id, outcome);
       setVerificationMessage(`Order marked as ${outcome.replaceAll("_", " ")}.`);
     } catch {
       setVerificationMessage("Network error updating order.");

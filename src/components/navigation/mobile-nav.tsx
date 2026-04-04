@@ -18,14 +18,14 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+type SessionRole = "customer" | "restaurant_staff" | "admin" | null | undefined;
+
 export function MobileNav() {
   const pathname = usePathname();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [browseHref, setBrowseHref] = useState("/");
   const [browseLabel, setBrowseLabel] = useState("Browse");
-  const [role, setRole] = useState<
-    "customer" | "restaurant_staff" | "admin" | null | undefined
-  >(undefined);
+  const [role, setRole] = useState<SessionRole>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,31 +80,43 @@ export function MobileNav() {
     };
   }, []);
 
-  const isCustomer = role === "customer";
+  const roleResolved = role !== undefined;
+  const isStaff = role === "restaurant_staff" || role === "admin";
 
   const navItems = useMemo(() => {
-    const browse = {
-      href: browseHref,
-      label: browseLabel,
-      icon: "🧺",
-      key: "browse",
-    };
-    const queueItem = {
-      href: "/reservations" as const,
-      label: "Queue",
-      icon: "📋",
-      key: "reservations",
-    };
-    return [
-      baseNavItems[0],
-      browse,
-      baseNavItems[1],
-      baseNavItems[2],
-      ...(isCustomer ? [] : [queueItem]),
-      baseNavItems[3],
-      baseNavItems[4],
-    ];
-  }, [browseHref, browseLabel, isCustomer]);
+    if (!roleResolved) {
+      return [...baseNavItems];
+    }
+
+    const showBrowseTab = isStaff && browseHref !== "/";
+    const showQueue = isStaff;
+
+    const core: Array<{ href: string; label: string; icon: string; key: string }> = [baseNavItems[0]];
+
+    if (showBrowseTab) {
+      core.push({
+        href: browseHref,
+        label: browseLabel,
+        icon: "🧺",
+        key: "browse",
+      });
+    }
+
+    core.push(baseNavItems[1], baseNavItems[2]);
+
+    if (showQueue) {
+      core.push({
+        href: "/reservations",
+        label: "Queue",
+        icon: "📋",
+        key: "reservations",
+      });
+    }
+
+    core.push(baseNavItems[3], baseNavItems[4]);
+
+    return core;
+  }, [browseHref, browseLabel, isStaff, roleResolved]);
 
   return (
     <nav

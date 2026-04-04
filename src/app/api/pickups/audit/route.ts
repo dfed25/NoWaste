@@ -5,6 +5,7 @@ import { getOrderByIdUnscoped } from "@/lib/order-store";
 import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
 import {
   appendPickupAuditEvent,
+  hasPickupAuditEvent,
   listPickupAuditEventsForScope,
 } from "@/lib/pickup-audit-store";
 
@@ -85,6 +86,22 @@ export async function POST(request: Request) {
 
   if (!orderRestaurantId) {
     return NextResponse.json({ error: "Order has no restaurant scope" }, { status: 400 });
+  }
+
+  if (order.fulfillmentStatus !== "reserved") {
+    return NextResponse.json(
+      { error: "Audit events for pickup are only valid while the order is reserved" },
+      { status: 409 },
+    );
+  }
+
+  const duplicate = await hasPickupAuditEvent(
+    orderRestaurantId,
+    parsed.data.orderId,
+    parsed.data.type,
+  );
+  if (duplicate) {
+    return NextResponse.json({ error: "This audit event was already recorded" }, { status: 409 });
   }
 
   try {

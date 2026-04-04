@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import type { RestaurantDashboardMetrics } from "@/lib/restaurant-dashboard-metrics";
 
 type Props = {
-  metrics: RestaurantDashboardMetrics | null;
+  metrics: RestaurantDashboardMetrics;
 };
 
 function cell(label: string, value: string) {
@@ -15,17 +15,6 @@ function cell(label: string, value: string) {
 }
 
 export function SummaryMetricsPanel({ metrics }: Props) {
-  if (!metrics) {
-    return (
-      <Card variant="elevated" className="space-y-3">
-        <h2 className="text-title-md">Summary metrics</h2>
-        <p className="text-sm text-neutral-600">
-          Scoped metrics appear when you are signed in as restaurant staff for a specific location.
-        </p>
-      </Card>
-    );
-  }
-
   return (
     <Card variant="elevated" className="space-y-3">
       <h2 className="text-title-md">Summary metrics</h2>

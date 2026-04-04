@@ -4,26 +4,31 @@ import { StatusIndicator } from "@/components/ui/status-indicator";
 import type { TonightListingRow } from "@/lib/restaurant-dashboard-metrics";
 
 type Props = {
-  listings: TonightListingRow[] | null;
+  /** When empty, optional CTA can be hidden (e.g. read-only embeds). */
+  listings: TonightListingRow[];
+  showCreateListingLink?: boolean;
 };
 
-export function TonightsListingsPanel({ listings }: Props) {
+export function TonightsListingsPanel({
+  listings,
+  showCreateListingLink = true,
+}: Props) {
   return (
     <Card variant="elevated" className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-title-md">Tonight&apos;s listings</h2>
-        <Link
-          href="/listings/new"
-          className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-        >
-          Create listing
-        </Link>
+        {showCreateListingLink ? (
+          <Link
+            href="/listings/new"
+            className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          >
+            Create listing
+          </Link>
+        ) : null}
       </div>
-      {!listings || listings.length === 0 ? (
+      {listings.length === 0 ? (
         <p className="text-sm text-neutral-500">
-          {listings === null
-            ? "Sign in as restaurant staff to see live listings for your location."
-            : "No active listings yet. Create one to appear here."}
+          No active listings with pickup windows today. Create one to appear here.
         </p>
       ) : (
         <div className="space-y-2">
