@@ -1,7 +1,6 @@
 import "server-only";
 import type { StatusIndicatorStatus } from "@/lib/status-indicator-status";
 import { autoFlagUnsoldListingsNearingClose } from "@/lib/donation";
-import type { ListingItem } from "@/lib/marketplace";
 import { listManagedListings } from "@/lib/marketplace-store";
 import { listOrdersForRestaurant } from "@/lib/order-store";
 
@@ -68,17 +67,13 @@ export async function getRestaurantDashboardData(restaurantId: string): Promise<
   const active = listings.filter((l) => l.status === "active");
   const activeToday = active.filter(pickupOverlapsLocalToday);
   const itemsRemaining = active.reduce((sum, l) => sum + l.quantityRemaining, 0);
-  const donationCandidates = autoFlagUnsoldListingsNearingClose(active as ListingItem[]);
+  const donationCandidates = autoFlagUnsoldListingsNearingClose(active);
   const donationEligible = donationCandidates.length;
   const nearDonationIds = new Set(donationCandidates.map((l) => l.id));
 
   const activeReservations = orders.filter((o) => o.fulfillmentStatus === "reserved").length;
 
-  const activity: DashboardActivityItem[] = [...orders]
-    .sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-    .slice(0, 8)
+  const activity: DashboardActivityItem[] = orders.slice(0, 8)
     .map((order) => ({
       id: order.id,
       at: order.createdAt,

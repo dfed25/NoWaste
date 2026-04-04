@@ -1,20 +1,23 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { constants } from "node:fs";
+import { mkdir, open, readFile, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
-import { createRunExclusive } from "@/lib/file-queue";
 import type { PickupAuditEvent, PickupEventType } from "@/lib/pickup";
 
 /**
- * Append-only pickup audit trail in `.nowaste-data/pickup-audit.json` (serialized writes).
+ * Append-only pickup audit trail in `.nowaste-data/pickup-audit.json`.
+ * Mutations run under a cross-process lock (`pickup-audit.json.lock`) so read-check-write is atomic.
  */
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const AUDIT_FILE = path.join(DATA_DIR, "pickup-audit.json");
+const LOCK_FILE = `${AUDIT_FILE}.lock`;
+const LOCK_WAIT_MS = 15_000;
+const LOCK_POLL_MS = 15;
+const STALE_LOCK_MS = 120_000;
 
 export type StoredPickupAuditEvent = PickupAuditEvent & { restaurantId: string };
-
-const runExclusive = createRunExclusive();
 
 const VALID_ACTORS = new Set<PickupAuditEvent["actor"]>(["restaurant", "customer", "system"]);
 const VALID_TYPES = new Set<PickupEventType>([
@@ -26,6 +29,48 @@ const VALID_TYPES = new Set<PickupEventType>([
 ]);
 
 type FileShape = { events: StoredPickupAuditEvent[] };
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function withPickupAuditFileLock<T>(operation: () => Promise<T>): Promise<T> {
+  await mkdir(DATA_DIR, { recursive: true });
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let lockHandle: Awaited<ReturnType<typeof open>> | null = null;
+
+  while (Date.now() < deadline) {
+    try {
+      lockHandle = await open(LOCK_FILE, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY);
+      break;
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== "EEXIST") throw error;
+      try {
+        const s = await stat(LOCK_FILE);
+        if (Date.now() - s.mtimeMs > STALE_LOCK_MS) {
+          await unlink(LOCK_FILE).catch(() => undefined);
+          continue;
+        }
+      } catch {
+        /* lock disappeared */
+      }
+      await delay(LOCK_POLL_MS);
+    }
+  }
+
+  if (!lockHandle) {
+    throw new Error("pickup_audit_lock_timeout");
+  }
+
+  try {
+    await lockHandle.writeFile(String(process.pid), "utf8");
+    return await operation();
+  } finally {
+    await lockHandle.close().catch(() => undefined);
+    await unlink(LOCK_FILE).catch(() => undefined);
+  }
+}
 
 async function readFileShape(): Promise<FileShape> {
   try {
@@ -78,28 +123,36 @@ async function writeFileShape(data: FileShape) {
   }
 }
 
-/** Whether an audit row already exists for this restaurant, order, and event type. */
-export async function hasPickupAuditEvent(
+function matchesEvent(
+  events: StoredPickupAuditEvent[],
   restaurantId: string,
   orderId: string,
   type: PickupEventType,
-): Promise<boolean> {
-  const file = await readFileShape();
-  return file.events.some(
+) {
+  return events.some(
     (ev) => ev.restaurantId === restaurantId && ev.orderId === orderId && ev.type === type,
   );
 }
 
-/** Prepends a new audit event and returns the public (non–restaurant-scoped) shape. */
-export async function appendPickupAuditEvent(input: {
+export type TryAppendPickupAuditResult =
+  | { ok: true; event: PickupAuditEvent }
+  | { ok: false; duplicate: true };
+
+/**
+ * Under a cross-process lock: if no matching event exists, append and persist; otherwise duplicate.
+ */
+export async function tryAppendPickupAuditEvent(input: {
   restaurantId: string;
   orderId: string;
   actor: PickupAuditEvent["actor"];
   type: PickupEventType;
   note?: string;
-}): Promise<PickupAuditEvent> {
-  return runExclusive(async () => {
+}): Promise<TryAppendPickupAuditResult> {
+  return withPickupAuditFileLock(async () => {
     const file = await readFileShape();
+    if (matchesEvent(file.events, input.restaurantId, input.orderId, input.type)) {
+      return { ok: false, duplicate: true };
+    }
     const event: StoredPickupAuditEvent = {
       id: `evt_${randomUUID()}`,
       orderId: input.orderId,
@@ -111,7 +164,7 @@ export async function appendPickupAuditEvent(input: {
     };
     file.events.unshift(event);
     await writeFileShape(file);
-    return toPublicAuditEvent(event);
+    return { ok: true, event: toPublicAuditEvent(event) };
   });
 }
 

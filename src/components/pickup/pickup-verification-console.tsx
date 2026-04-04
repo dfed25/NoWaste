@@ -86,12 +86,17 @@ export function PickupVerificationConsole() {
   async function postAudit(
     orderId: string,
     type: "code_verified" | "picked_up" | "missed_pickup",
+    pickupCode?: string,
   ): Promise<boolean> {
+    const body =
+      type === "code_verified"
+        ? { orderId, type, pickupCode: pickupCode ?? "" }
+        : { orderId, type };
     const response = await fetch("/api/pickups/audit", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, type }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) return false;
     const payload = (await response.json().catch(() => ({}))) as { event?: PickupAuditEvent };
@@ -109,7 +114,7 @@ export function PickupVerificationConsole() {
       setVerificationMessage("Invalid pickup code. Please retry.");
       return;
     }
-    const ok = await postAudit(selectedFull.id, "code_verified");
+    const ok = await postAudit(selectedFull.id, "code_verified", code);
     if (!ok) {
       setVerificationMessage("Could not record verification (duplicate or invalid state).");
       return;

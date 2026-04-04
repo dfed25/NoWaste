@@ -1,22 +1,33 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { CustomerOrder } from "@/lib/marketplace";
 import { resolveRestaurantIdForOrder } from "@/lib/marketplace";
 import { getOrderByIdUnscoped } from "@/lib/order-store";
 import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
 import { finalizeReservedPickupWithAudit } from "@/lib/pickup-fulfillment-with-audit";
-import {
-  appendPickupAuditEvent,
-  hasPickupAuditEvent,
-  listPickupAuditEventsForScope,
-} from "@/lib/pickup-audit-store";
+import { verifyPickupCode, type PickupOrder } from "@/lib/pickup";
+import { listPickupAuditEventsForScope, tryAppendPickupAuditEvent } from "@/lib/pickup-audit-store";
 
 const postSchema = z
   .object({
     orderId: z.string().min(1),
     type: z.enum(["code_verified", "picked_up", "missed_pickup"]),
+    pickupCode: z.string().optional(),
     note: z.string().max(500).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((val, ctx) => {
+    if (val.type === "code_verified") {
+      const code = val.pickupCode?.trim();
+      if (!code) {
+        ctx.addIssue({
+          code: "custom",
+          message: "pickupCode is required for code_verified",
+          path: ["pickupCode"],
+        });
+      }
+    }
+  });
 
 /** Staff and admins may read scoped pickup audit history. */
 function canManage(role: string | undefined) {
@@ -30,6 +41,15 @@ function canActOnOrder(
   if (context.role === "admin") return true;
   if (!orderRestaurantId) return false;
   return context.role === "restaurant_staff" && context.scopedRestaurantId === orderRestaurantId;
+}
+
+function orderToPickupSlice(order: CustomerOrder): PickupOrder {
+  return {
+    id: order.id,
+    reservationCode: order.reservationCode,
+    pickupWindowEnd: order.pickupWindowEnd,
+    fulfillmentStatus: order.fulfillmentStatus,
+  };
 }
 
 /** GET /api/pickups/audit — list events for the caller’s restaurant (or all, for admin). */
@@ -58,7 +78,7 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/pickups/audit — append verification or finalize pickup.
- * `picked_up` / `missed_pickup` run through {@link finalizeReservedPickupWithAudit} (audit + order row).
+ * `picked_up` / `missed_pickup` run through {@link finalizeReservedPickupWithAudit}.
  */
 export async function POST(request: Request) {
   const context = await resolveListingAuthContext(request);
@@ -116,26 +136,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const duplicate = await hasPickupAuditEvent(
-    orderRestaurantId,
-    parsed.data.orderId,
-    parsed.data.type,
-  );
-  if (duplicate) {
-    return NextResponse.json({ error: "This audit event was already recorded" }, { status: 409 });
+  const slice = orderToPickupSlice(order);
+  if (!verifyPickupCode(slice, parsed.data.pickupCode ?? "")) {
+    return NextResponse.json({ error: "Invalid pickup code" }, { status: 400 });
   }
 
   try {
-    const event = await appendPickupAuditEvent({
+    const result = await tryAppendPickupAuditEvent({
       restaurantId: orderRestaurantId,
       orderId: parsed.data.orderId,
       actor: "restaurant",
       type: parsed.data.type,
       note: parsed.data.note,
     });
-    return NextResponse.json({ event }, { status: 201 });
+    if (!result.ok) {
+      return NextResponse.json({ error: "This audit event was already recorded" }, { status: 409 });
+    }
+    return NextResponse.json({ event: result.event }, { status: 201 });
   } catch (error) {
     console.error("Failed to append pickup audit event", error);
+    if (error instanceof Error && error.message === "pickup_audit_lock_timeout") {
+      return NextResponse.json({ error: "Server busy, please retry." }, { status: 503 });
+    }
     return NextResponse.json({ error: "Failed to record event" }, { status: 500 });
   }
 }

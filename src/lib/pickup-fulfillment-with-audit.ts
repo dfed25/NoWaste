@@ -4,15 +4,15 @@ import type { CustomerOrder } from "@/lib/marketplace";
 import { resolveRestaurantIdForOrder } from "@/lib/marketplace";
 import { getOrderByIdUnscoped, updateOrderFulfillment } from "@/lib/order-store";
 import type { PickupAuditEvent } from "@/lib/pickup";
-import { appendPickupAuditEvent, hasPickupAuditEvent } from "@/lib/pickup-audit-store";
+import { tryAppendPickupAuditEvent } from "@/lib/pickup-audit-store";
 
 export type FulfillmentWithAuditResult =
   | { ok: true; event: PickupAuditEvent; order: CustomerOrder }
   | { ok: false; message: string; status: number };
 
 /**
- * Authoritative path for staff pickup completion: validates reserved state, dedupes audit,
- * appends the audit row, then updates fulfillment. Call only after auth/scope checks.
+ * Authoritative path for staff pickup completion: validates reserved state, atomically
+ * dedupes + appends audit under a file lock, then updates fulfillment.
  */
 export async function finalizeReservedPickupWithAudit(options: {
   orderId: string;
@@ -36,20 +36,23 @@ export async function finalizeReservedPickupWithAudit(options: {
     };
   }
 
-  if (await hasPickupAuditEvent(restaurantId, options.orderId, options.status)) {
-    return { ok: false, message: "This audit event was already recorded", status: 409 };
-  }
-
   let event: PickupAuditEvent;
   try {
-    event = await appendPickupAuditEvent({
+    const appended = await tryAppendPickupAuditEvent({
       restaurantId,
       orderId: options.orderId,
       actor: "restaurant",
       type: options.status,
     });
+    if (!appended.ok) {
+      return { ok: false, message: "This audit event was already recorded", status: 409 };
+    }
+    event = appended.event;
   } catch (error) {
     console.error("finalizeReservedPickupWithAudit: append audit failed", error);
+    if (error instanceof Error && error.message === "pickup_audit_lock_timeout") {
+      return { ok: false, message: "Server busy, please retry.", status: 503 };
+    }
     return { ok: false, message: "Failed to record audit", status: 500 };
   }
 
