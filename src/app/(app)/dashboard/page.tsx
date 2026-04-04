@@ -1,8 +1,32 @@
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { RestaurantDashboardShell } from "@/components/dashboard/restaurant-dashboard-shell";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { verifyServerSession } from "@/lib/server-session";
+import { getRestaurantDashboardData } from "@/lib/restaurant-dashboard-metrics";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const headerList = await headers();
+  const cookie = headerList.get("cookie") ?? "";
+  const session = verifyServerSession(new Request("http://localhost", { headers: { cookie } }));
+
+  if (session.user?.role === "customer") {
+    redirect("/");
+  }
+  if (session.user?.role === "admin") {
+    redirect("/admin");
+  }
+  if (session.user?.role !== "restaurant_staff") {
+    redirect("/");
+  }
+  const restaurantId = session.user.scopedRestaurantId;
+  if (!restaurantId) {
+    redirect("/");
+  }
+
+  const data = await getRestaurantDashboardData(restaurantId);
+
   return (
     <section className="space-y-5">
       <div>
@@ -36,7 +60,12 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <RestaurantDashboardShell />
+      <RestaurantDashboardShell
+        metrics={data.metrics}
+        activity={data.activity}
+        tonightListings={data.tonightListings}
+      />
+
       <div className="flex flex-wrap gap-3 text-sm">
         <Link className="text-brand-700 hover:underline" href="/pickups/verify">
           Pickup verification
@@ -51,4 +80,3 @@ export default function DashboardPage() {
     </section>
   );
 }
-

@@ -1,19 +1,10 @@
 import { Badge } from "@/components/ui/badge";
+import type { StatusIndicatorStatus } from "@/lib/status-indicator-status";
 
-type Status =
-  | "draft"
-  | "active"
-  | "reserved"
-  | "picked_up"
-  | "missed_pickup"
-  | "expired"
-  | "donation_eligible"
-  | "donation_claimed"
-  | "donated"
-  | "donation_failed";
+export type { StatusIndicatorStatus } from "@/lib/status-indicator-status";
 
 const statusVariantMap: Record<
-  Status,
+  StatusIndicatorStatus,
   "neutral" | "success" | "warning" | "danger" | "brand"
 > = {
   draft: "neutral",
@@ -29,7 +20,7 @@ const statusVariantMap: Record<
 };
 
 type Props = {
-  status: Status;
+  status: StatusIndicatorStatus;
 };
 
 export function StatusIndicator({ status }: Props) {
@@ -39,4 +30,3 @@ export function StatusIndicator({ status }: Props) {
     </Badge>
   );
 }
-
