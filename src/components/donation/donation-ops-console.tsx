@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { listings } from "@/lib/marketplace";
+import type { ListingItem, ManagedListing } from "@/lib/marketplace";
 import {
   autoFlagUnsoldListingsNearingClose,
   claimDonation,
@@ -17,13 +17,49 @@ import {
 } from "@/lib/donation";
 
 export function DonationOpsConsole() {
+  const [listings, setListings] = useState<ManagedListing[]>([]);
+  const [listingsError, setListingsError] = useState<string | null>(null);
+  const [listingsLoading, setListingsLoading] = useState(true);
   const [queue, setQueue] = useState<DonationReadyItem[]>([]);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
-  const candidates = useMemo(
-    () => autoFlagUnsoldListingsNearingClose(listings, new Date(nowTick)),
-    [nowTick],
+
+  const activeListingItems = useMemo(
+    () => listings.filter((l) => l.status === "active") as ListingItem[],
+    [listings],
   );
+
+  const candidates = useMemo(
+    () => autoFlagUnsoldListingsNearingClose(activeListingItems, new Date(nowTick)),
+    [activeListingItems, nowTick],
+  );
+
+  const loadListings = useCallback(async () => {
+    setListingsError(null);
+    setListingsLoading(true);
+    try {
+      const response = await fetch("/api/listings", { credentials: "include" });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        listings?: ManagedListing[];
+      };
+      if (!response.ok) {
+        setListingsError(payload.error || "Could not load listings.");
+        setListings([]);
+        return;
+      }
+      setListings(Array.isArray(payload.listings) ? payload.listings : []);
+    } catch {
+      setListingsError("Network error loading listings.");
+      setListings([]);
+    } finally {
+      setListingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadListings();
+  }, [loadListings]);
 
   useEffect(() => {
     const interval = setInterval(() => setNowTick(Date.now()), 60_000);
@@ -78,13 +114,24 @@ export function DonationOpsConsole() {
 
   return (
     <div className="space-y-4">
+      {listingsError ? (
+        <p className="text-sm text-red-600" role="alert">
+          {listingsError}
+        </p>
+      ) : null}
+      {listingsLoading ? <p className="text-sm text-neutral-500">Loading live listings…</p> : null}
       <Card className="space-y-2">
         <h2 className="text-title-md">Donation fallback triggers</h2>
         <p className="text-body-sm text-neutral-600">
           Unsold listings near close are flagged and converted to donation-ready.
         </p>
         <p className="text-xs text-neutral-500">Candidates: {candidates.length}</p>
-        <Button onClick={handleConvert}>Convert unsold to donation-ready</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleConvert}>Convert unsold to donation-ready</Button>
+          <Button type="button" variant="secondary" onClick={() => void loadListings()}>
+            Refresh listings
+          </Button>
+        </div>
       </Card>
 
       <Card className="space-y-3">

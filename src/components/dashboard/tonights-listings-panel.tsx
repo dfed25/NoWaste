@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import type { TonightListingRow } from "@/lib/restaurant-dashboard-metrics";
 
-const tonightListings = [
-  { id: "L-1001", title: "Bakery surprise bags", qty: 8, status: "active" as const },
-  { id: "L-1002", title: "Prepared bowls", qty: 5, status: "reserved" as const },
-  { id: "L-1003", title: "Salad mix boxes", qty: 3, status: "donation_eligible" as const },
-];
+type Props = {
+  listings: TonightListingRow[] | null;
+};
 
-export function TonightsListingsPanel() {
+export function TonightsListingsPanel({ listings }: Props) {
   return (
     <Card variant="elevated" className="space-y-3">
       <div className="flex items-center justify-between">
@@ -20,21 +19,28 @@ export function TonightsListingsPanel() {
           Create listing
         </Link>
       </div>
-      <div className="space-y-2">
-        {tonightListings.map((listing) => (
-          <div
-            key={listing.id}
-            className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-2"
-          >
-            <div>
-              <p className="text-sm font-medium text-neutral-900">{listing.title}</p>
-              <p className="text-xs text-neutral-500">Qty remaining: {listing.qty}</p>
+      {!listings || listings.length === 0 ? (
+        <p className="text-sm text-neutral-500">
+          {listings === null
+            ? "Sign in as restaurant staff to see live listings for your location."
+            : "No active listings yet. Create one to appear here."}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {listings.map((listing) => (
+            <div
+              key={listing.id}
+              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-2"
+            >
+              <div>
+                <p className="text-sm font-medium text-neutral-900">{listing.title}</p>
+                <p className="text-xs text-neutral-500">Qty remaining: {listing.qty}</p>
+              </div>
+              <StatusIndicator status={listing.status} />
             </div>
-            <StatusIndicator status={listing.status} />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
-

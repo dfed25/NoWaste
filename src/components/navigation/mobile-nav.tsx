@@ -5,15 +5,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
-const navItems = [
-  { href: "/", label: "Home", icon: "🏠" },
-  { href: "/listings", label: "Browse", icon: "🧺" },
-  { href: "/saved", label: "Saved", icon: "⭐" },
-  { href: "/orders", label: "Orders", icon: "🧾" },
-  { href: "/reservations", label: "Queue", icon: "📋" },
-  { href: "/notifications", label: "Alerts", icon: "🔔" },
-  { href: "/account/settings", label: "Account", icon: "👤" },
-];
+const baseNavItems = [
+  { href: "/", label: "Home", icon: "🏠", key: "home" },
+  { href: "/saved", label: "Saved", icon: "⭐", key: "saved" },
+  { href: "/orders", label: "Orders", icon: "🧾", key: "orders" },
+  { href: "/reservations", label: "Queue", icon: "📋", key: "reservations" },
+  { href: "/notifications", label: "Alerts", icon: "🔔", key: "notifications" },
+  { href: "/account/settings", label: "Account", icon: "👤", key: "account" },
+] as const;
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -23,6 +22,25 @@ function isActivePath(pathname: string, href: string) {
 export function MobileNav() {
   const pathname = usePathname();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [browseHref, setBrowseHref] = useState("/");
+  const [browseLabel, setBrowseLabel] = useState("Browse");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/session-summary", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { role?: string | null } | null) => {
+        if (cancelled || !payload) return;
+        const staff =
+          payload.role === "restaurant_staff" || payload.role === "admin";
+        setBrowseHref(staff ? "/listings" : "/");
+        setBrowseLabel(staff ? "Hub" : "Browse");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -49,6 +67,17 @@ export function MobileNav() {
     };
   }, []);
 
+  const navItems = [
+    baseNavItems[0],
+    {
+      href: browseHref,
+      label: browseLabel,
+      icon: "🧺",
+      key: "browse",
+    },
+    ...baseNavItems.slice(1),
+  ];
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
@@ -59,7 +88,7 @@ export function MobileNav() {
           const isActive = isActivePath(pathname, item.href);
           const showUnreadBadge = item.href === "/notifications" && unreadNotifications > 0;
           return (
-            <li key={item.href} className="min-w-[4.25rem] flex-1 snap-start">
+            <li key={item.key} className="min-w-[4.25rem] flex-1 snap-start">
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}

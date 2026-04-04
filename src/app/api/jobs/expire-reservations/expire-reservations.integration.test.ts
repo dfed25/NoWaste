@@ -12,10 +12,15 @@ describe("expire reservations job integration", () => {
           headers: { "x-job-secret": "test-secret" },
         }),
       );
-      const payload = (await response.json()) as { ok: boolean; totalChecked: number };
+      const payload = (await response.json()) as {
+        ok: boolean;
+        totalChecked: number;
+        expiredCount: number;
+      };
       expect(response.status).toBe(200);
       expect(payload.ok).toBe(true);
-      expect(payload.totalChecked).toBeGreaterThan(0);
+      expect(typeof payload.totalChecked).toBe("number");
+      expect(typeof payload.expiredCount).toBe("number");
     } finally {
       if (previousSecret === undefined) delete process.env.EXPIRE_RESERVATIONS_SECRET;
       else process.env.EXPIRE_RESERVATIONS_SECRET = previousSecret;

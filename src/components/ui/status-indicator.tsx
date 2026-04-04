@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-type Status =
+export type StatusIndicatorStatus =
   | "draft"
   | "active"
   | "reserved"
@@ -13,7 +13,7 @@ type Status =
   | "donation_failed";
 
 const statusVariantMap: Record<
-  Status,
+  StatusIndicatorStatus,
   "neutral" | "success" | "warning" | "danger" | "brand"
 > = {
   draft: "neutral",
@@ -29,7 +29,7 @@ const statusVariantMap: Record<
 };
 
 type Props = {
-  status: Status;
+  status: StatusIndicatorStatus;
 };
 
 export function StatusIndicator({ status }: Props) {

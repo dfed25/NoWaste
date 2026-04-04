@@ -7,6 +7,7 @@ import {
   getOrdersForCustomer as getMockOrders,
   resolveRestaurantIdForOrder,
 } from "@/lib/marketplace";
+import { expireStaleReservations, type PickupOrder } from "@/lib/pickup";
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
@@ -352,5 +353,46 @@ export async function systemCancelOrder(
     orders[index] = updated;
     await writePersistedOrders(orders);
     return updated;
+  });
+}
+
+/**
+ * Marks reserved orders whose pickup window has ended as expired in persisted storage.
+ * Used by the secure cron/job endpoint.
+ */
+export async function expireStalePersistedReservations(now = new Date()): Promise<{
+  totalChecked: number;
+  expiredCount: number;
+}> {
+  return runExclusive(async () => {
+    const orders = await readPersistedOrders();
+    const pickupSlice: PickupOrder[] = orders.map((order) => ({
+      id: order.id,
+      reservationCode: order.reservationCode,
+      pickupWindowEnd: order.pickupWindowEnd,
+      fulfillmentStatus: order.fulfillmentStatus,
+    }));
+    const nextPickup = expireStaleReservations(pickupSlice, now);
+    const byId = new Map(nextPickup.map((row) => [row.id, row]));
+
+    let expiredCount = 0;
+    const nextOrders = orders.map((order) => {
+      const row = byId.get(order.id);
+      if (!row) return order;
+      if (order.fulfillmentStatus === "reserved" && row.fulfillmentStatus === "expired") {
+        expiredCount += 1;
+        return { ...order, fulfillmentStatus: "expired" as const };
+      }
+      return order;
+    });
+
+    const changed = nextOrders.some(
+      (order, i) => order.fulfillmentStatus !== orders[i]!.fulfillmentStatus,
+    );
+    if (changed) {
+      await writePersistedOrders(nextOrders);
+    }
+
+    return { totalChecked: orders.length, expiredCount };
   });
 }
