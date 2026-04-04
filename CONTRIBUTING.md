@@ -69,7 +69,7 @@ npm run mobile:ios:dev
 npm run sim:ios
 ```
 
-If tooling looks wrong, run `npm run mobile:doctor` (`npx cap doctor`).
+If tooling looks wrong, run `npm run mobile:doctor` (`npx cap doctor`). If the Simulator or Xcode shows a **white screen**, run **`npm run mobile:debug`** — it prints the `server.url` baked into `ios/` and whether Next answers on your dev port.
 
 **Or two terminals:** Terminal A — dev server bound to all interfaces so the simulator can reach it:
 
