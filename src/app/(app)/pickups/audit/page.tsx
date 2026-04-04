@@ -1,11 +1,35 @@
 import { Card } from "@/components/ui/card";
-import { getPickupAuditEvents } from "@/lib/pickup-audit-store";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { listPickupAuditEventsForScope } from "@/lib/pickup-audit-store";
+import { verifyServerSession } from "@/lib/server-session";
 
 export default async function PickupAuditPage() {
-  let auditEvents: Awaited<ReturnType<typeof getPickupAuditEvents>> = [];
+  const headerList = await headers();
+  const cookieHeader = headerList.get("cookie") ?? "";
+  const session = verifyServerSession(
+    new Request("http://localhost", { headers: { cookie: cookieHeader } }),
+  );
+
+  if (!session.isAuthenticated) {
+    redirect("/auth/login?next=/pickups/audit");
+  }
+  if (session.user?.role === "customer") {
+    redirect("/");
+  }
+
+  const isAdmin = session.user?.role === "admin";
+  const restaurantId =
+    session.user?.role === "restaurant_staff" ? (session.user.scopedRestaurantId ?? null) : null;
+
+  if (!isAdmin && !restaurantId) {
+    redirect("/dashboard");
+  }
+
+  let auditEvents: Awaited<ReturnType<typeof listPickupAuditEventsForScope>> = [];
   let loadError: string | null = null;
   try {
-    auditEvents = await getPickupAuditEvents();
+    auditEvents = await listPickupAuditEventsForScope({ restaurantId, isAdmin });
   } catch {
     loadError = "Unable to load pickup audit events right now.";
   }
@@ -15,7 +39,8 @@ export default async function PickupAuditPage() {
       <div>
         <h1 className="text-title-lg">Pickup audit events</h1>
         <p className="text-body-sm text-neutral-600">
-          Immutable record of verification and fulfillment events.
+          Immutable record of verification and fulfillment events for your restaurant (or all locations
+          for admins).
         </p>
       </div>
       <Card>
@@ -27,7 +52,10 @@ export default async function PickupAuditPage() {
           <ul className="space-y-2">
             {auditEvents.map((event) => (
               <li key={event.id} className="text-sm text-neutral-700">
-                {event.orderId} - {event.type.replaceAll("_", " ")} - {event.actor}
+                {event.orderId} — {event.type.replaceAll("_", " ")} — {event.actor}
+                <span className="block text-xs text-neutral-500">
+                  {new Date(event.at).toLocaleString()}
+                </span>
               </li>
             ))}
           </ul>
@@ -36,4 +64,3 @@ export default async function PickupAuditPage() {
     </section>
   );
 }
-

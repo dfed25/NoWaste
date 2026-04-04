@@ -60,6 +60,21 @@ const dietaryPreferenceSchema = z.enum([
   "dairy_free",
 ]);
 
+export const donationReadyItemSchema = z.object({
+  id: z.string().min(1),
+  listingId: z.string().min(1),
+  restaurantId: z.string().min(1),
+  title: z.string().min(1),
+  quantity: z.number().int().min(0),
+  readyAt: z.string().min(1),
+  status: z.enum(["donation_ready", "claimed", "picked_up", "completed"]),
+  claimedByPartnerId: z.string().optional(),
+});
+
+export const donationQueuePayloadSchema = z.object({
+  queue: z.array(donationReadyItemSchema),
+});
+
 export const restaurantOnboardingSchema = z.object({
   restaurantName: z.string().min(2, "Restaurant name is required"),
   addressLine1: z.string().min(3, "Address is required"),
@@ -140,6 +155,7 @@ export type ListingInput = z.infer<typeof listingSchema>;
 export type RestaurantOnboardingInput = z.infer<
   typeof restaurantOnboardingSchema
 >;
+export type DonationQueuePayloadInput = z.infer<typeof donationQueuePayloadSchema>;
 export type AccountSettingsInput = z.infer<typeof accountSettingsSchema>;
 export type PickupVerificationInput = z.infer<typeof pickupVerificationSchema>;
 export type DonationPartnerProfileInput = z.infer<typeof donationPartnerProfileSchema>;

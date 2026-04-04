@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -12,41 +13,73 @@ import {
   type RestaurantOnboardingInput,
 } from "@/lib/validation";
 
+const defaultValues: RestaurantOnboardingInput = {
+  restaurantName: "",
+  addressLine1: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  latitude: 0,
+  longitude: 0,
+  timezone: "America/New_York",
+  hoursOfOperation: "Mon-Sun 8:00 AM - 10:00 PM",
+  contactPersonName: "",
+  contactPersonEmail: "",
+  contactPersonPhone: "",
+  donationFallbackEnabled: true,
+  preferredDonationPartner: "",
+  paymentOnboardingStatus: "not_started",
+};
+
 export function RestaurantOnboardingForm() {
   const { pushToast } = useToast();
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<RestaurantOnboardingInput>({
     resolver: zodResolver(restaurantOnboardingSchema),
-    defaultValues: {
-      restaurantName: "",
-      addressLine1: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      latitude: 0,
-      longitude: 0,
-      timezone: "America/New_York",
-      hoursOfOperation: "Mon-Sun 8:00 AM - 10:00 PM",
-      contactPersonName: "",
-      contactPersonEmail: "",
-      contactPersonPhone: "",
-      donationFallbackEnabled: true,
-      preferredDonationPartner: "",
-      paymentOnboardingStatus: "not_started",
-    },
+    defaultValues,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/onboarding/restaurant", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { draft?: { data: RestaurantOnboardingInput } } | null) => {
+        if (cancelled || !payload?.draft?.data) return;
+        reset(payload.draft.data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [reset]);
 
   return (
     <form
       className="space-y-4"
-      onSubmit={handleSubmit(async () => {
+      onSubmit={handleSubmit(async (values) => {
+        const response = await fetch("/api/onboarding/restaurant", {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        if (!response.ok) {
+          pushToast({
+            tone: "error",
+            title: "Save failed",
+            description: payload.error || "Could not save onboarding draft.",
+          });
+          return;
+        }
         pushToast({
           tone: "success",
-          title: "Onboarding draft saved",
-          description: "Backend persistence and approval flow are next.",
+          title: "Onboarding saved",
+          description: "Your restaurant profile draft is stored for this location.",
         });
       })}
     >
@@ -139,7 +172,7 @@ export function RestaurantOnboardingForm() {
           {...register("preferredDonationPartner")}
         />
         <Input
-          label="Payment onboarding status placeholder"
+          label="Payment onboarding status"
           error={errors.paymentOnboardingStatus?.message}
           {...register("paymentOnboardingStatus")}
         />
@@ -151,4 +184,3 @@ export function RestaurantOnboardingForm() {
     </form>
   );
 }
-

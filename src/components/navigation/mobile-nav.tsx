@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 
 const baseNavItems = [
   { href: "/", label: "Home", icon: "🏠", key: "home" },
   { href: "/saved", label: "Saved", icon: "⭐", key: "saved" },
   { href: "/orders", label: "Orders", icon: "🧾", key: "orders" },
-  { href: "/reservations", label: "Queue", icon: "📋", key: "reservations" },
   { href: "/notifications", label: "Alerts", icon: "🔔", key: "notifications" },
   { href: "/account/settings", label: "Account", icon: "👤", key: "account" },
 ] as const;
@@ -24,19 +23,33 @@ export function MobileNav() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [browseHref, setBrowseHref] = useState("/");
   const [browseLabel, setBrowseLabel] = useState("Browse");
+  const [role, setRole] = useState<
+    "customer" | "restaurant_staff" | "admin" | null | undefined
+  >(undefined);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/session-summary", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload: { role?: string | null } | null) => {
-        if (cancelled || !payload) return;
-        const staff =
-          payload.role === "restaurant_staff" || payload.role === "admin";
+        if (cancelled) return;
+        if (!payload) {
+          setRole(null);
+          return;
+        }
+        const r = payload.role;
+        if (r === "customer" || r === "restaurant_staff" || r === "admin") {
+          setRole(r);
+        } else {
+          setRole(null);
+        }
+        const staff = r === "restaurant_staff" || r === "admin";
         setBrowseHref(staff ? "/listings" : "/");
         setBrowseLabel(staff ? "Hub" : "Browse");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setRole(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -67,16 +80,31 @@ export function MobileNav() {
     };
   }, []);
 
-  const navItems = [
-    baseNavItems[0],
-    {
+  const isCustomer = role === "customer";
+
+  const navItems = useMemo(() => {
+    const browse = {
       href: browseHref,
       label: browseLabel,
       icon: "🧺",
       key: "browse",
-    },
-    ...baseNavItems.slice(1),
-  ];
+    };
+    const queueItem = {
+      href: "/reservations" as const,
+      label: "Queue",
+      icon: "📋",
+      key: "reservations",
+    };
+    return [
+      baseNavItems[0],
+      browse,
+      baseNavItems[1],
+      baseNavItems[2],
+      ...(isCustomer ? [] : [queueItem]),
+      baseNavItems[3],
+      baseNavItems[4],
+    ];
+  }, [browseHref, browseLabel, isCustomer]);
 
   return (
     <nav

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,6 +21,8 @@ export function DonationOpsConsole() {
   const [listingsError, setListingsError] = useState<string | null>(null);
   const [listingsLoading, setListingsLoading] = useState(true);
   const [queue, setQueue] = useState<DonationReadyItem[]>([]);
+  const [queueHydrated, setQueueHydrated] = useState(false);
+  const skipNextPersist = useRef(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
 
@@ -60,6 +62,43 @@ export function DonationOpsConsole() {
   useEffect(() => {
     void loadListings();
   }, [loadListings]);
+
+  const loadQueue = useCallback(async () => {
+    try {
+      const response = await fetch("/api/donation/queue", { credentials: "include" });
+      const payload = (await response.json().catch(() => ({}))) as {
+        queue?: DonationReadyItem[];
+      };
+      if (!response.ok) return;
+      skipNextPersist.current = true;
+      setQueue(Array.isArray(payload.queue) ? payload.queue : []);
+      setQueueHydrated(true);
+    } catch {
+      setQueueHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (listingsLoading || listingsError) return;
+    void loadQueue();
+  }, [listingsLoading, listingsError, loadQueue]);
+
+  useEffect(() => {
+    if (!queueHydrated) return;
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void fetch("/api/donation/queue", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queue }),
+      });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [queue, queueHydrated]);
 
   useEffect(() => {
     const interval = setInterval(() => setNowTick(Date.now()), 60_000);
@@ -130,6 +169,9 @@ export function DonationOpsConsole() {
           <Button onClick={handleConvert}>Convert unsold to donation-ready</Button>
           <Button type="button" variant="secondary" onClick={() => void loadListings()}>
             Refresh listings
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => void loadQueue()}>
+            Reload saved queue
           </Button>
         </div>
       </Card>

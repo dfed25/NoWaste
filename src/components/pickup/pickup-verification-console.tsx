@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { CustomerOrder } from "@/lib/marketplace";
 import {
-  createPickupAuditEvent,
   expireStaleReservations,
   markMissedPickup,
   markPickedUp,
@@ -61,6 +60,17 @@ export function PickupVerificationConsole() {
     void loadOrders();
   }, [loadOrders]);
 
+  useEffect(() => {
+    void fetch("/api/pickups/audit", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { events?: PickupAuditEvent[] } | null) => {
+        if (payload?.events?.length) {
+          setAuditEvents(payload.events);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   const orders = useMemo(() => {
     const slice = rawOrders.map(toPickupSlice);
     return expireStaleReservations(slice);
@@ -71,7 +81,24 @@ export function PickupVerificationConsole() {
     [rawOrders, selectedOrderId],
   );
 
-  function handleVerify() {
+  async function postAudit(
+    orderId: string,
+    type: "code_verified" | "picked_up" | "missed_pickup",
+  ) {
+    const response = await fetch("/api/pickups/audit", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, type }),
+    });
+    if (!response.ok) return;
+    const payload = (await response.json().catch(() => ({}))) as { event?: PickupAuditEvent };
+    if (payload.event) {
+      setAuditEvents((prev) => [payload.event!, ...prev]);
+    }
+  }
+
+  async function handleVerify() {
     setVerificationMessage(null);
     if (!selectedFull || !code) return;
     const slice = toPickupSlice(selectedFull);
@@ -80,10 +107,7 @@ export function PickupVerificationConsole() {
       return;
     }
     setVerificationMessage("Code verified successfully.");
-    setAuditEvents((prev) => [
-      createPickupAuditEvent(selectedFull.id, "restaurant", "code_verified"),
-      ...prev,
-    ]);
+    await postAudit(selectedFull.id, "code_verified");
   }
 
   async function setOutcome(outcome: "picked_up" | "missed_pickup") {
@@ -108,10 +132,7 @@ export function PickupVerificationConsole() {
       setRawOrders((prev) =>
         prev.map((o) => (o.id === optimistic.id ? { ...o, fulfillmentStatus: optimistic.fulfillmentStatus } : o)),
       );
-      setAuditEvents((prev) => [
-        createPickupAuditEvent(selectedFull.id, "restaurant", outcome),
-        ...prev,
-      ]);
+      await postAudit(selectedFull.id, outcome);
       setVerificationMessage(`Order marked as ${outcome.replaceAll("_", " ")}.`);
     } catch {
       setVerificationMessage("Network error updating order.");
@@ -155,7 +176,7 @@ export function PickupVerificationConsole() {
             value={code}
             onChange={(event) => setCode(event.target.value)}
           />
-          <Button onClick={handleVerify} disabled={!selectedFull || !code}>
+          <Button onClick={() => void handleVerify()} disabled={!selectedFull || !code}>
             Verify code
           </Button>
         </div>
