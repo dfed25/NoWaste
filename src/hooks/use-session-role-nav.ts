@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ensureSessionRoleFetched,
   getCachedSessionRole,
+  subscribeSessionRoleCache,
   type SessionRole,
 } from "@/lib/session-role-cache";
 
@@ -16,10 +17,16 @@ export function useSessionRoleNav() {
   const [role, setRole] = useState<SessionRole>(() => getCachedSessionRole());
 
   useEffect(() => {
-    void ensureSessionRoleFetched().then(() => {
-      const c = getCachedSessionRole();
-      setRole(c === undefined ? null : c);
-    });
+    function applyCacheFromFetch() {
+      void ensureSessionRoleFetched().then(() => {
+        const c = getCachedSessionRole();
+        setRole(c === undefined ? null : c);
+      });
+    }
+
+    applyCacheFromFetch();
+    const unsubscribe = subscribeSessionRoleCache(applyCacheFromFetch);
+    return unsubscribe;
   }, []);
 
   const roleResolved = role !== undefined;

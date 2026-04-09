@@ -35,6 +35,12 @@ function fallbackRoleFromUser(user: User | undefined): AppRole {
   );
 }
 
+function syncNwSessionFor(session: Session | null): void {
+  if (!session?.access_token) return;
+  const fallback = fallbackRoleFromUser(session.user);
+  void syncNwSessionFromAccessToken(session.access_token, { fallbackRole: fallback });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,10 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setIsLoading(false);
       syncAuthCookies(data.session);
-      if (data.session?.access_token) {
-        const fallback = fallbackRoleFromUser(data.session.user);
-        void syncNwSessionFromAccessToken(data.session.access_token, { fallbackRole: fallback });
-      }
+      syncNwSessionFor(data.session);
     });
 
     ({
@@ -71,10 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       syncAuthCookies(nextSession);
-      if (nextSession?.access_token) {
-        const fallback = fallbackRoleFromUser(nextSession.user);
-        void syncNwSessionFromAccessToken(nextSession.access_token, { fallbackRole: fallback });
-      }
+      syncNwSessionFor(nextSession);
     }));
 
     return () => {

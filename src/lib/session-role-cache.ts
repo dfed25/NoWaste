@@ -7,6 +7,20 @@ let cachedResolved: SessionRole | null | undefined = undefined;
 let inFlight: Promise<void> | null = null;
 let cacheVersion = 0;
 
+const listeners = new Set<() => void>();
+
+function notifyListeners(): void {
+  listeners.forEach((listener) => listener());
+}
+
+/** Subscribe to cache changes (invalidation + fetch completion). */
+export function subscribeSessionRoleCache(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 function parsePayload(
   payload: { authenticated?: boolean; role?: string | null } | null,
 ): SessionRole | null {
@@ -23,6 +37,7 @@ export function invalidateSessionRoleCache(): void {
   cacheVersion += 1;
   cachedResolved = undefined;
   inFlight = null;
+  notifyListeners();
 }
 
 /** One shared request per page load; all consumers reuse the same result. */
@@ -37,10 +52,11 @@ export function ensureSessionRoleFetched(): Promise<void> {
       .then((payload: { authenticated?: boolean; role?: string | null } | null) => {
         if (requestVersion !== cacheVersion) return;
         cachedResolved = parsePayload(payload);
+        notifyListeners();
       })
       .catch(() => {
         if (requestVersion !== cacheVersion) return;
-        cachedResolved = null;
+        cachedResolved = undefined;
       })
       .finally(() => {
         if (inFlight === pending) {

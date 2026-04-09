@@ -73,11 +73,14 @@ export function MobileNav() {
   useEffect(() => {
     let mounted = true;
     let isFetching = false;
-    const controller = new AbortController();
+    let activeController: AbortController | null = null;
 
     async function loadUnreadCount() {
       if (isFetching) return;
       isFetching = true;
+      const controller = new AbortController();
+      activeController = controller;
+      const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
       try {
         const response = await fetch("/api/notifications/me", {
           cache: "no-store",
@@ -89,9 +92,15 @@ export function MobileNav() {
         setUnreadNotifications(
           typeof payload.unreadCount === "number" ? payload.unreadCount : 0,
         );
-      } catch {
-        if (mounted) setUnreadNotifications(0);
+      } catch (error) {
+        if (!mounted) return;
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        /* Transient failures: keep last known unread count */
       } finally {
+        window.clearTimeout(timeoutId);
+        if (activeController === controller) {
+          activeController = null;
+        }
         isFetching = false;
       }
     }
@@ -100,7 +109,7 @@ export function MobileNav() {
     const interval = window.setInterval(() => void loadUnreadCount(), 30_000);
     return () => {
       mounted = false;
-      controller.abort();
+      activeController?.abort();
       window.clearInterval(interval);
     };
   }, []);
