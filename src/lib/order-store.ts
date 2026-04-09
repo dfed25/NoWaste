@@ -7,6 +7,12 @@ import {
   getOrdersForCustomer as getMockOrders,
   resolveRestaurantIdForOrder,
 } from "@/lib/marketplace";
+import { expireStaleReservations, type PickupOrder } from "@/lib/pickup";
+
+/**
+ * File-backed customer orders under `.nowaste-data/orders.json`, with serialized writes
+ * and helpers for fulfillment, payment, cancellation, and inventory-restore idempotency.
+ */
 
 const DATA_DIR = path.join(process.cwd(), ".nowaste-data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
@@ -146,6 +152,7 @@ async function writeInventoryRestores(next: InventoryRestoreMap) {
   }
 }
 
+/** True if inventory for this order was already restored after cancel/refund. */
 export async function hasOrderInventoryRestore(orderId: string): Promise<boolean> {
   return runExclusive(async () => {
     const restores = await readInventoryRestores();
@@ -153,6 +160,7 @@ export async function hasOrderInventoryRestore(orderId: string): Promise<boolean
   });
 }
 
+/** Records that listing quantity was restored for the order (idempotent marker). */
 export async function markOrderInventoryRestored(orderId: string) {
   return runExclusive(async () => {
     const restores = await readInventoryRestores();
@@ -161,6 +169,10 @@ export async function markOrderInventoryRestored(orderId: string) {
   });
 }
 
+/**
+ * Atomically marks inventory restored unless already marked; returns whether this call
+ * was the first restore (caller should adjust stock only when true).
+ */
 export async function checkAndMarkOrderInventoryRestored(orderId: string): Promise<boolean> {
   return runExclusive(async () => {
     const restores = await readInventoryRestores();
@@ -202,11 +214,13 @@ export async function listOrdersForRestaurant(restaurantId: string): Promise<Cus
   return sortOrdersByCreatedAtDesc(scoped);
 }
 
+/** Loads an order by id without customer scoping (staff/system use). */
 export async function getOrderByIdUnscoped(orderId: string): Promise<CustomerOrder | null> {
   const orders = await readPersistedOrders();
   return orders.find((order) => order.id === orderId) ?? null;
 }
 
+/** Loads an order, optionally restricted to a customer id. */
 export async function getOrderById(orderId: string, customerId?: string) {
   const orders = await readPersistedOrders();
   return orders.find((order) => order.id === orderId && (!customerId || order.customerId === customerId)) ?? null;
@@ -249,6 +263,7 @@ export async function createReservedOrder(input: {
   });
 }
 
+/** Removes an order row if it belongs to the customer (admin/testing paths). */
 export async function deleteOrder(orderId: string, customerId: string): Promise<boolean> {
   return runExclusive(async () => {
     const orders = await readPersistedOrders();
@@ -261,6 +276,9 @@ export async function deleteOrder(orderId: string, customerId: string): Promise<
   });
 }
 
+/**
+ * Sets fulfillment from `reserved` to picked up or missed; returns null if not applicable.
+ */
 export async function updateOrderFulfillment(
   orderId: string,
   next: "picked_up" | "missed_pickup",
@@ -301,6 +319,7 @@ export async function updateOrderPaymentStatus(
   });
 }
 
+/** Alias for {@link updateOrderPaymentStatus} (legacy call sites). */
 export async function updateOrderPaymentState(
   orderId: string,
   paymentStatus: CustomerOrder["paymentStatus"],
@@ -332,6 +351,7 @@ export async function cancelOrder(orderId: string, customerId: string) {
 }
 
 
+/** System/job cancellation (e.g. payment failure) without customer id scoping. */
 export async function systemCancelOrder(
   orderId: string,
   paymentStatus: CustomerOrder["paymentStatus"],
@@ -352,5 +372,46 @@ export async function systemCancelOrder(
     orders[index] = updated;
     await writePersistedOrders(orders);
     return updated;
+  });
+}
+
+/**
+ * Marks reserved orders whose pickup window has ended as expired in persisted storage.
+ * Used by the secure cron/job endpoint.
+ */
+export async function expireStalePersistedReservations(now = new Date()): Promise<{
+  totalChecked: number;
+  expiredCount: number;
+}> {
+  return runExclusive(async () => {
+    const orders = await readPersistedOrders();
+    const pickupSlice: PickupOrder[] = orders.map((order) => ({
+      id: order.id,
+      reservationCode: order.reservationCode,
+      pickupWindowEnd: order.pickupWindowEnd,
+      fulfillmentStatus: order.fulfillmentStatus,
+    }));
+    const nextPickup = expireStaleReservations(pickupSlice, now);
+    const byId = new Map(nextPickup.map((row) => [row.id, row]));
+
+    let expiredCount = 0;
+    const nextOrders = orders.map((order) => {
+      const row = byId.get(order.id);
+      if (!row) return order;
+      if (order.fulfillmentStatus === "reserved" && row.fulfillmentStatus === "expired") {
+        expiredCount += 1;
+        return { ...order, fulfillmentStatus: "expired" as const };
+      }
+      return order;
+    });
+
+    const changed = nextOrders.some(
+      (order, i) => order.fulfillmentStatus !== orders[i]!.fulfillmentStatus,
+    );
+    if (changed) {
+      await writePersistedOrders(nextOrders);
+    }
+
+    return { totalChecked: orders.length, expiredCount };
   });
 }

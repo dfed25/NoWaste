@@ -52,6 +52,11 @@ export function expireStaleReservations(
   });
 }
 
+/** Aligns persisted status with pickup-window expiry (same derivation as the pickup UI). */
+export function effectivePickupFulfillmentFromOrder(order: PickupOrder): PickupOrder["fulfillmentStatus"] {
+  return expireStaleReservations([order])[0]!.fulfillmentStatus;
+}
+
 export function createPickupAuditEvent(
   orderId: string,
   actor: PickupAuditEvent["actor"],
