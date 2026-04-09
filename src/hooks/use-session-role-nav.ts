@@ -4,35 +4,50 @@ import { useEffect, useState } from "react";
 
 export type SessionRole = "customer" | "restaurant_staff" | "admin" | null | undefined;
 
-/**
- * Shared session role + derived listing links for desktop and mobile nav (single fetch).
- */
-export function useSessionRoleNav() {
-  const [role, setRole] = useState<SessionRole>(undefined);
+/** `undefined` = fetch not finished; thereafter `null` or a concrete role. */
+let cachedResolved: SessionRole | null | undefined = undefined;
+let inFlight: Promise<void> | null = null;
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/auth/session-summary", { credentials: "include", signal: controller.signal })
+function parsePayload(payload: { role?: string | null } | null): SessionRole | null {
+  if (!payload) return null;
+  const r = payload.role;
+  if (r === "customer" || r === "restaurant_staff" || r === "admin") return r;
+  return null;
+}
+
+/** One shared request per page load; all hook instances reuse the same result. */
+function ensureSessionRoleFetched(): Promise<void> {
+  if (cachedResolved !== undefined) {
+    return Promise.resolve();
+  }
+  if (!inFlight) {
+    inFlight = fetch("/api/auth/session-summary", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload: { role?: string | null } | null) => {
-        if (controller.signal.aborted) return;
-        if (!payload) {
-          setRole(null);
-          return;
-        }
-        const r = payload.role;
-        if (r === "customer" || r === "restaurant_staff" || r === "admin") {
-          setRole(r);
-        } else {
-          setRole(null);
-        }
+        cachedResolved = parsePayload(payload);
       })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setRole(null);
+      .catch(() => {
+        cachedResolved = null;
+      })
+      .finally(() => {
+        inFlight = null;
       });
-    return () => controller.abort();
+  }
+  return inFlight;
+}
+
+/**
+ * Shared session role + derived listing links for desktop and mobile nav (single shared fetch).
+ */
+export function useSessionRoleNav() {
+  const [role, setRole] = useState<SessionRole>(() =>
+    cachedResolved !== undefined ? cachedResolved : undefined,
+  );
+
+  useEffect(() => {
+    void ensureSessionRoleFetched().then(() => {
+      setRole(cachedResolved === undefined ? null : cachedResolved);
+    });
   }, []);
 
   const roleResolved = role !== undefined;

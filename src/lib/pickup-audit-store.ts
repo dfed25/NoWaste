@@ -120,6 +120,7 @@ function isStoredEvent(value: unknown): value is StoredPickupAuditEvent {
   if (!VALID_ACTORS.has(e.actor as PickupAuditEvent["actor"])) return false;
   if (!VALID_TYPES.has(e.type as PickupEventType)) return false;
   if (e.note !== undefined && typeof e.note !== "string") return false;
+  if (Number.isNaN(Date.parse(e.at))) return false;
   return true;
 }
 

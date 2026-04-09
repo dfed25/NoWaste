@@ -3,6 +3,7 @@ import "server-only";
 import type { CustomerOrder } from "@/lib/marketplace";
 import { resolveRestaurantIdForOrder } from "@/lib/marketplace";
 import { getOrderByIdUnscoped, updateOrderFulfillment } from "@/lib/order-store";
+import { reportPickupAuditPostFulfillmentIssue } from "@/lib/ops-telemetry";
 import { effectivePickupFulfillmentFromOrder, type PickupAuditEvent } from "@/lib/pickup";
 import { tryAppendPickupAuditEvent } from "@/lib/pickup-audit-store";
 
@@ -66,15 +67,21 @@ export async function finalizeReservedPickupWithAudit(options: {
       type: options.status,
     });
     if (!appended.ok) {
-      console.warn(
-        "finalizeReservedPickupWithAudit: audit duplicate after fulfillment",
-        options.orderId,
-      );
+      reportPickupAuditPostFulfillmentIssue("duplicate", {
+        restaurantId,
+        orderId: options.orderId,
+        status: options.status,
+      });
       return { ok: true, event: null, order: updated };
     }
     return { ok: true, event: appended.event, order: updated };
   } catch (error) {
-    console.error("finalizeReservedPickupWithAudit: append audit failed after fulfillment", error);
+    reportPickupAuditPostFulfillmentIssue("exception", {
+      restaurantId,
+      orderId: options.orderId,
+      status: options.status,
+      error,
+    });
     return { ok: true, event: null, order: updated };
   }
 }
