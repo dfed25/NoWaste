@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSessionRoleNav } from "@/hooks/use-session-role-nav";
 
 export function PrimaryNavLinks() {
-  const { roleResolved, isCustomer, listingsHref, listingsLabelDesktop } = useSessionRoleNav();
+  const { roleResolved, isStaff, listingsHref, listingsLabelDesktop } = useSessionRoleNav();
 
   if (!roleResolved) {
     return (
@@ -20,7 +20,7 @@ export function PrimaryNavLinks() {
 
   return (
     <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-600 md:flex">
-      {!isCustomer ? (
+      {isStaff ? (
         <Link href="/dashboard" className="hover:text-neutral-900">
           Dashboard
         </Link>
@@ -28,7 +28,7 @@ export function PrimaryNavLinks() {
       <Link href={listingsHref} className="hover:text-neutral-900">
         {listingsLabelDesktop}
       </Link>
-      {!isCustomer ? (
+      {isStaff ? (
         <Link href="/reservations" className="hover:text-neutral-900">
           Reservations
         </Link>
@@ -42,7 +42,7 @@ export function PrimaryNavLinks() {
       <Link href="/notifications" className="hover:text-neutral-900">
         Notifications
       </Link>
-      {!isCustomer ? (
+      {isStaff ? (
         <Link href="/onboarding/restaurant" className="hover:text-neutral-900">
           Onboarding
         </Link>

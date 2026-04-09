@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdir, open, readFile, rename, rm, stat, unlink } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { PickupAuditEvent, PickupEventType } from "@/lib/pickup";
 
@@ -15,7 +15,6 @@ const AUDIT_FILE = path.join(DATA_DIR, "pickup-audit.json");
 const LOCK_FILE = `${AUDIT_FILE}.lock`;
 const LOCK_WAIT_MS = 15_000;
 const LOCK_POLL_MS = 15;
-const STALE_LOCK_MS = 120_000;
 
 export type StoredPickupAuditEvent = PickupAuditEvent & { restaurantId: string };
 
@@ -34,6 +33,32 @@ function delay(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Only removes a lock file when the recorded pid is not running (avoids stealing an active holder). */
+async function tryRemoveDeadOwnerLock(): Promise<void> {
+  let raw: string;
+  try {
+    raw = await readFile(LOCK_FILE, "utf8");
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") return;
+    throw error;
+  }
+  const pid = Number.parseInt(raw.trim(), 10);
+  if (Number.isFinite(pid) && pid > 0 && isProcessAlive(pid)) {
+    return;
+  }
+  await unlink(LOCK_FILE).catch(() => undefined);
+}
+
 async function withPickupAuditFileLock<T>(operation: () => Promise<T>): Promise<T> {
   await mkdir(DATA_DIR, { recursive: true });
   const deadline = Date.now() + LOCK_WAIT_MS;
@@ -46,15 +71,7 @@ async function withPickupAuditFileLock<T>(operation: () => Promise<T>): Promise<
     } catch (error) {
       const err = error as NodeJS.ErrnoException;
       if (err.code !== "EEXIST") throw error;
-      try {
-        const s = await stat(LOCK_FILE);
-        if (Date.now() - s.mtimeMs > STALE_LOCK_MS) {
-          await unlink(LOCK_FILE).catch(() => undefined);
-          continue;
-        }
-      } catch {
-        /* lock disappeared */
-      }
+      await tryRemoveDeadOwnerLock();
       await delay(LOCK_POLL_MS);
     }
   }

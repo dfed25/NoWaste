@@ -35,6 +35,7 @@ export function PickupVerificationConsole() {
   const [actionPending, setActionPending] = useState(false);
 
   const loadOrders = useCallback(async () => {
+    setLoading(true);
     setLoadError(null);
     try {
       const response = await fetch("/api/orders/restaurant", { credentials: "include" });
@@ -201,7 +202,15 @@ export function PickupVerificationConsole() {
             value={code}
             onChange={(event) => setCode(event.target.value)}
           />
-          <Button onClick={() => void handleVerify()} disabled={!selectedFull || !code}>
+          <Button
+            onClick={() => void handleVerify()}
+            disabled={
+              !selectedFull ||
+              !code ||
+              selectedFull.fulfillmentStatus !== "reserved" ||
+              actionPending
+            }
+          >
             Verify code
           </Button>
         </div>
@@ -213,9 +222,10 @@ export function PickupVerificationConsole() {
         {verificationMessage ? (
           <p
             className={
-              verificationMessage.startsWith("Invalid")
-                ? "text-xs text-red-600"
-                : "text-xs text-green-700"
+              verificationMessage.startsWith("Code verified") ||
+              verificationMessage.startsWith("Order marked")
+                ? "text-xs text-green-700"
+                : "text-xs text-red-600"
             }
           >
             {verificationMessage}

@@ -5,7 +5,7 @@ import { resolveRestaurantIdForOrder } from "@/lib/marketplace";
 import { getOrderByIdUnscoped } from "@/lib/order-store";
 import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
 import { finalizeReservedPickupWithAudit } from "@/lib/pickup-fulfillment-with-audit";
-import { verifyPickupCode, type PickupOrder } from "@/lib/pickup";
+import { effectivePickupFulfillmentFromOrder, verifyPickupCode, type PickupOrder } from "@/lib/pickup";
 import { listPickupAuditEventsForScope, tryAppendPickupAuditEvent } from "@/lib/pickup-audit-store";
 
 const postSchema = z
@@ -129,9 +129,15 @@ export async function POST(request: Request) {
     );
   }
 
-  if (order.fulfillmentStatus !== "reserved") {
+  const effective = effectivePickupFulfillmentFromOrder(orderToPickupSlice(order));
+  if (effective !== "reserved") {
     return NextResponse.json(
-      { error: "Audit events for pickup are only valid while the order is reserved" },
+      {
+        error:
+          effective === "expired"
+            ? "This reservation is past its pickup window."
+            : "Audit events for pickup are only valid while the order is reserved",
+      },
       { status: 409 },
     );
   }

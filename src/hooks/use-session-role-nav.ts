@@ -11,11 +11,11 @@ export function useSessionRoleNav() {
   const [role, setRole] = useState<SessionRole>(undefined);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/session-summary", { credentials: "include" })
+    const controller = new AbortController();
+    fetch("/api/auth/session-summary", { credentials: "include", signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload: { role?: string | null } | null) => {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         if (!payload) {
           setRole(null);
           return;
@@ -27,12 +27,12 @@ export function useSessionRoleNav() {
           setRole(null);
         }
       })
-      .catch(() => {
-        if (!cancelled) setRole(null);
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setRole(null);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   const roleResolved = role !== undefined;
