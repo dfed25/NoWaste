@@ -49,6 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let supabase;
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
+    /** Avoids duplicate sync when getSession and the first onAuthStateChange share the same JWT. */
+    let lastSyncedAccessToken: string | null = null;
+
+    function syncNwSessionIfNeeded(next: Session | null): void {
+      const token = next?.access_token ?? null;
+      if (!token) {
+        lastSyncedAccessToken = null;
+        return;
+      }
+      if (token === lastSyncedAccessToken) return;
+      lastSyncedAccessToken = token;
+      syncNwSessionFor(next);
+    }
 
     try {
       supabase = getSupabaseBrowserClient();
@@ -66,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setIsLoading(false);
       syncAuthCookies(data.session);
-      syncNwSessionFor(data.session);
+      syncNwSessionIfNeeded(data.session);
     });
 
     ({
@@ -74,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       syncAuthCookies(nextSession);
-      syncNwSessionFor(nextSession);
+      syncNwSessionIfNeeded(nextSession);
     }));
 
     return () => {
