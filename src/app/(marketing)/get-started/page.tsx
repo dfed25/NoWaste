@@ -1,67 +1,60 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
-const primaryLinkClasses =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
+const btnPrimary =
+  "inline-flex h-11 w-full items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
 
-const secondaryLinkClasses =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-neutral-100 px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2";
+const btnSecondary =
+  "inline-flex h-11 w-full items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2";
 
 export default function GetStartedPage() {
   return (
-    <section className="space-y-4 pb-8">
-      <Card
-        variant="elevated"
-        className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/30"
-      >
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge variant="brand">Welcome to NoWaste</Badge>
-            <Badge variant="neutral">Choose your role</Badge>
-          </div>
-          <h1 className="text-title-lg text-neutral-900">How do you want to use the app?</h1>
-          <p className="text-body-sm text-neutral-600">
-            Pick an account type to personalize your onboarding and dashboard.
-          </p>
-        </div>
-      </Card>
+    <section className="mx-auto max-w-lg space-y-8 pb-12 pt-2">
+      <div className="space-y-2 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">NoWaste</p>
+        <h1 className="text-title-lg text-neutral-900">Welcome</h1>
+        <p className="text-body-md text-neutral-600">
+          Create an account and choose how you&apos;ll use the app. Your choice sets up the right home
+          screen and permissions.
+        </p>
+      </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Card className="space-y-3 border-neutral-200/80">
-          <div className="space-y-1">
-            <h2 className="text-title-md">I am a customer</h2>
-            <p className="text-sm text-neutral-600">
-              Discover nearby surplus meals, reserve quickly, and track pickups.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/auth/sign-up?role=customer" className={primaryLinkClasses}>
-              Sign up as customer
+      <div className="space-y-4">
+        <Card className="border-neutral-200/90 p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-neutral-900">I&apos;m ordering food</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-600">
+            Browse surplus meals, reserve pickups, and track orders.
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <Link href="/auth/sign-up?role=customer" className={btnPrimary}>
+              Create customer account
             </Link>
-            <Link href="/auth/login?role=customer" className={secondaryLinkClasses}>
+            <Link href="/auth/login?role=customer" className={btnSecondary}>
               I already have an account
             </Link>
           </div>
         </Card>
 
-        <Card className="space-y-3 border-neutral-200/80">
-          <div className="space-y-1">
-            <h2 className="text-title-md">I run a restaurant</h2>
-            <p className="text-sm text-neutral-600">
-              Publish surplus listings, monitor reservations, and manage pickup operations.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/auth/sign-up?role=restaurant" className={primaryLinkClasses}>
-              Sign up as restaurant
+        <Card className="border-neutral-200/90 p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-neutral-900">I represent a restaurant</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-600">
+            List surplus inventory, manage reservations, and run pickup operations.
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <Link href="/auth/sign-up?role=restaurant" className={btnPrimary}>
+              Create restaurant account
             </Link>
-            <Link href="/auth/login?role=restaurant" className={secondaryLinkClasses}>
+            <Link href="/auth/login?role=restaurant" className={btnSecondary}>
               I already have an account
             </Link>
           </div>
         </Card>
       </div>
+
+      <p className="text-center text-xs text-neutral-500">
+        By continuing you agree to use a real email and password. Sessions stay signed in on this
+        device.
+      </p>
     </section>
   );
 }

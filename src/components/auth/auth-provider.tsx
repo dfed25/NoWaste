@@ -9,11 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { syncNwSessionFromAccessToken } from "@/lib/auth/sync-nw-session-client";
+import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import { normalizeRole, type AppRole } from "@/lib/admin";
 import {
   AUTH_COOKIE_NAME,
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
-import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
 type AuthContextValue = {
   user: User | null;
@@ -49,6 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setIsLoading(false);
       syncAuthCookies(data.session);
+      if (data.session?.access_token) {
+        const fallback =
+          normalizeRole(data.session.user?.user_metadata?.app_role as string | undefined) ??
+          ("customer" as AppRole);
+        void syncNwSessionFromAccessToken(data.session.access_token, { fallbackRole: fallback });
+      }
     });
 
     ({
@@ -56,6 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       syncAuthCookies(nextSession);
+      if (nextSession?.access_token) {
+        const fallback =
+          normalizeRole(nextSession.user?.user_metadata?.app_role as string | undefined) ??
+          ("customer" as AppRole);
+        void syncNwSessionFromAccessToken(nextSession.access_token, { fallbackRole: fallback });
+      }
     }));
 
     return () => {

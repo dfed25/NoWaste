@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
-import { normalizeRole, routeForRole, serializeRoleCookie } from "@/lib/admin";
+import { syncNwSessionFromAccessToken } from "@/lib/auth/sync-nw-session-client";
+import { normalizeRole, routeForRole } from "@/lib/admin";
 
 function isSafeNextPath(value: string) {
   return value.startsWith("/") && !value.startsWith("//") && !value.includes("://") && !value.startsWith("/\\");
@@ -51,22 +52,23 @@ export function LoginForm() {
         return;
       }
 
-      pushToast({
-        tone: "success",
-        title: "Logged in",
-      });
-
       const query = new URLSearchParams(window.location.search);
-
       const requestedRole = normalizeRole(query.get("role"));
       const metadataRole = normalizeRole(
         (data.user?.user_metadata?.app_role as string | undefined) ??
           (data.user?.user_metadata?.role as string | undefined),
       );
-
       const role = metadataRole ?? requestedRole ?? "customer";
-      const isSecure = window.location.protocol === "https:";
-      document.cookie = serializeRoleCookie(role, isSecure);
+
+      const session = data.session;
+      if (session?.access_token) {
+        await syncNwSessionFromAccessToken(session.access_token, { fallbackRole: role });
+      }
+
+      pushToast({
+        tone: "success",
+        title: "Logged in",
+      });
 
       const rawNext = query.get("next");
       const next = rawNext && isSafeNextPath(rawNext) ? rawNext : routeForRole(role);

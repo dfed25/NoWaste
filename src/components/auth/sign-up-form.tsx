@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { signUpSchema, type SignUpInput } from "@/lib/validation";
-import { AppRole, serializeRoleCookie } from "@/lib/admin";
+import type { AppRole } from "@/lib/admin";
 
 type Props = {
   role: AppRole;
@@ -61,9 +61,6 @@ export function SignUpForm({ role }: Props) {
         });
         return;
       }
-
-      const isSecure = window.location.protocol === "https:";
-      document.cookie = serializeRoleCookie(role, isSecure);
 
       pushToast({
         tone: "success",

@@ -1,23 +1,37 @@
 import { NextResponse } from "next/server";
-import { verifyServerSession } from "@/lib/server-session";
+import { readNwRoleCookieFallback, verifyServerSession } from "@/lib/server-session";
 
 const noStore = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: Request) {
   const session = verifyServerSession(request);
-  if (!session.isAuthenticated || !session.user?.role) {
+  if (session.isAuthenticated && session.user?.role) {
     return NextResponse.json(
-      { authenticated: false, role: null, scopedRestaurantId: null },
+      {
+        authenticated: true,
+        trust: "signed" as const,
+        role: session.user.role,
+        scopedRestaurantId: session.user.scopedRestaurantId ?? null,
+      },
+      { status: 200, headers: noStore },
+    );
+  }
+
+  const fallback = readNwRoleCookieFallback(request);
+  if (fallback) {
+    return NextResponse.json(
+      {
+        authenticated: true,
+        trust: "cookie" as const,
+        role: fallback,
+        scopedRestaurantId: null,
+      },
       { status: 200, headers: noStore },
     );
   }
 
   return NextResponse.json(
-    {
-      authenticated: true,
-      role: session.user.role,
-      scopedRestaurantId: session.user.scopedRestaurantId ?? null,
-    },
+    { authenticated: false, trust: "none" as const, role: null, scopedRestaurantId: null },
     { status: 200, headers: noStore },
   );
 }
