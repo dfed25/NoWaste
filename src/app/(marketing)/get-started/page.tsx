@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-
-const btnPrimary =
-  "inline-flex h-11 w-full items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
-
-const btnSecondary =
-  "inline-flex h-11 w-full items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2";
+import {
+  MARKETING_LINK_BUTTON_PRIMARY,
+  MARKETING_LINK_BUTTON_SECONDARY,
+} from "@/lib/ui/marketing-link-classes";
 
 export default function GetStartedPage() {
   return (
@@ -26,10 +24,10 @@ export default function GetStartedPage() {
             Browse surplus meals, reserve pickups, and track orders.
           </p>
           <div className="mt-5 flex flex-col gap-2">
-            <Link href="/auth/sign-up?role=customer" className={btnPrimary}>
+            <Link href="/auth/sign-up?role=customer" className={MARKETING_LINK_BUTTON_PRIMARY}>
               Create customer account
             </Link>
-            <Link href="/auth/login?role=customer" className={btnSecondary}>
+            <Link href="/auth/login?role=customer" className={MARKETING_LINK_BUTTON_SECONDARY}>
               I already have an account
             </Link>
           </div>
@@ -41,10 +39,10 @@ export default function GetStartedPage() {
             List surplus inventory, manage reservations, and run pickup operations.
           </p>
           <div className="mt-5 flex flex-col gap-2">
-            <Link href="/auth/sign-up?role=restaurant" className={btnPrimary}>
+            <Link href="/auth/sign-up?role=restaurant" className={MARKETING_LINK_BUTTON_PRIMARY}>
               Create restaurant account
             </Link>
-            <Link href="/auth/login?role=restaurant" className={btnSecondary}>
+            <Link href="/auth/login?role=restaurant" className={MARKETING_LINK_BUTTON_SECONDARY}>
               I already have an account
             </Link>
           </div>
@@ -52,8 +50,7 @@ export default function GetStartedPage() {
       </div>
 
       <p className="text-center text-xs text-neutral-500">
-        By continuing you agree to use a real email and password. Sessions stay signed in on this
-        device.
+        Please use a valid email address. Sessions remain active on this device.
       </p>
     </section>
   );

@@ -13,6 +13,21 @@ const bodySchema = z.object({ access_token: z.string().min(1) }).strict();
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
+/** Drop stale HMAC + scope cookies; keep `nw-authenticated` (Supabase session still valid). */
+function clearStaleSignedSessionCookies(response: NextResponse) {
+  const clearShared = {
+    path: "/" as const,
+    maxAge: 0,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+  };
+  const httpOnly = { ...clearShared, httpOnly: true as const };
+  const roleVisible = { ...clearShared, httpOnly: false as const };
+  response.cookies.set(RESTAURANT_ID_COOKIE_NAME, "", httpOnly);
+  response.cookies.set(NW_SESSION_SIGNATURE_COOKIE_NAME, "", httpOnly);
+  response.cookies.set(ADMIN_ROLE_COOKIE, "", roleVisible);
+}
+
 /**
  * Verifies the Supabase access token and issues signed `nw-*` cookies so APIs and
  * session-summary agree with the browser session (remembers you across reloads).
@@ -61,13 +76,15 @@ export async function POST(request: Request) {
       process.env.DEFAULT_STAFF_RESTAURANT_ID?.trim() ||
       "";
     if (!restaurantId) {
-      return NextResponse.json({
+      const res = NextResponse.json({
         ok: true,
         signed: false,
         reason: "restaurant_scope_required" as const,
         message:
           "Restaurant accounts need a location id in profile metadata (restaurant_id) or DEFAULT_STAFF_RESTAURANT_ID in env for local dev.",
       });
+      clearStaleSignedSessionCookies(res);
+      return res;
     }
   }
 

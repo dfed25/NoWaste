@@ -26,6 +26,15 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function fallbackRoleFromUser(user: User | undefined): AppRole {
+  const meta = user?.user_metadata;
+  return (
+    normalizeRole(meta?.app_role as string | undefined) ??
+    normalizeRole(meta?.role as string | undefined) ??
+    ("customer" as AppRole)
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,9 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       syncAuthCookies(data.session);
       if (data.session?.access_token) {
-        const fallback =
-          normalizeRole(data.session.user?.user_metadata?.app_role as string | undefined) ??
-          ("customer" as AppRole);
+        const fallback = fallbackRoleFromUser(data.session.user);
         void syncNwSessionFromAccessToken(data.session.access_token, { fallbackRole: fallback });
       }
     });
@@ -65,9 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession);
       syncAuthCookies(nextSession);
       if (nextSession?.access_token) {
-        const fallback =
-          normalizeRole(nextSession.user?.user_metadata?.app_role as string | undefined) ??
-          ("customer" as AppRole);
+        const fallback = fallbackRoleFromUser(nextSession.user);
         void syncNwSessionFromAccessToken(nextSession.access_token, { fallbackRole: fallback });
       }
     }));
@@ -118,4 +123,3 @@ function syncAuthCookies(session: Session | null) {
     document.cookie = `${CUSTOMER_ID_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
   }
 }
-

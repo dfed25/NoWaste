@@ -13,10 +13,7 @@ export type { SessionRole };
  * Shared session role + derived listing links for desktop and mobile nav (single shared fetch).
  */
 export function useSessionRoleNav() {
-  const [role, setRole] = useState<SessionRole>(() => {
-    const c = getCachedSessionRole();
-    return c !== undefined ? c : undefined;
-  });
+  const [role, setRole] = useState<SessionRole>(() => getCachedSessionRole());
 
   useEffect(() => {
     void ensureSessionRoleFetched().then(() => {

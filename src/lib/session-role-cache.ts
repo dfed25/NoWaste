@@ -5,6 +5,7 @@ export type SessionRole = "customer" | "restaurant_staff" | "admin" | null | und
 /** `undefined` = fetch not finished; thereafter `null` or a concrete role. */
 let cachedResolved: SessionRole | null | undefined = undefined;
 let inFlight: Promise<void> | null = null;
+let cacheVersion = 0;
 
 function parsePayload(
   payload: { authenticated?: boolean; role?: string | null } | null,
@@ -19,6 +20,7 @@ function parsePayload(
 
 /** Clears the module cache so the next hook mount refetches (e.g. after login / sync-session). */
 export function invalidateSessionRoleCache(): void {
+  cacheVersion += 1;
   cachedResolved = undefined;
   inFlight = null;
 }
@@ -29,17 +31,23 @@ export function ensureSessionRoleFetched(): Promise<void> {
     return Promise.resolve();
   }
   if (!inFlight) {
-    inFlight = fetch("/api/auth/session-summary", { credentials: "include" })
+    const requestVersion = cacheVersion;
+    const pending = fetch("/api/auth/session-summary", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload: { authenticated?: boolean; role?: string | null } | null) => {
+        if (requestVersion !== cacheVersion) return;
         cachedResolved = parsePayload(payload);
       })
       .catch(() => {
+        if (requestVersion !== cacheVersion) return;
         cachedResolved = null;
       })
       .finally(() => {
-        inFlight = null;
+        if (inFlight === pending) {
+          inFlight = null;
+        }
       });
+    inFlight = pending;
   }
   return inFlight;
 }

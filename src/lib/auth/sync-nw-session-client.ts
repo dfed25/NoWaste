@@ -16,27 +16,31 @@ export async function syncNwSessionFromAccessToken(
   accessToken: string,
   options?: SyncNwSessionOptions,
 ): Promise<{ ok: boolean; signed: boolean }> {
-  const res = await fetch("/api/auth/sync-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ access_token: accessToken }),
-  });
-  let signed = false;
   try {
-    const body = (await res.json()) as { signed?: boolean };
-    signed = body.signed === true;
+    const res = await fetch("/api/auth/sync-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+    let signed = false;
+    try {
+      const body = (await res.json()) as { signed?: boolean };
+      signed = body.signed === true;
+    } catch {
+      /* ignore */
+    }
+
+    if (res.ok && !signed && options?.fallbackRole) {
+      const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
+      document.cookie = serializeRoleCookie(options.fallbackRole, isSecure);
+    }
+
+    if (res.ok) {
+      invalidateSessionRoleCache();
+    }
+    return { ok: res.ok, signed };
   } catch {
-    /* ignore */
+    return { ok: false, signed: false };
   }
-
-  if (res.ok && !signed && options?.fallbackRole) {
-    const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
-    document.cookie = serializeRoleCookie(options.fallbackRole, isSecure);
-  }
-
-  if (res.ok) {
-    invalidateSessionRoleCache();
-  }
-  return { ok: res.ok, signed };
 }

@@ -60,16 +60,9 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function staffLoadingPlaceholderItems(): MobileNavItem[] {
-  return [
-    { ...baseNavItems[0], pending: true },
-    { href: "/listings", label: "…", glyph: "browse", key: "browse", pending: true },
-    { ...baseNavItems[1], pending: true },
-    { ...baseNavItems[2], pending: true },
-    { href: "/reservations", label: "…", glyph: "queue", key: "reservations", pending: true },
-    { ...baseNavItems[3], pending: true },
-    { ...baseNavItems[4], pending: true },
-  ];
+/** Role-agnostic skeleton: same tabs customers see, no transient staff-only slots. */
+function loadingPlaceholderItems(): MobileNavItem[] {
+  return baseNavItems.map((item) => ({ ...item, pending: true }));
 }
 
 export function MobileNav() {
@@ -79,10 +72,17 @@ export function MobileNav() {
 
   useEffect(() => {
     let mounted = true;
+    let isFetching = false;
+    const controller = new AbortController();
 
     async function loadUnreadCount() {
+      if (isFetching) return;
+      isFetching = true;
       try {
-        const response = await fetch("/api/notifications/me", { cache: "no-store" });
+        const response = await fetch("/api/notifications/me", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!response.ok) return;
         const payload = (await response.json()) as { unreadCount?: number };
         if (!mounted) return;
@@ -91,20 +91,23 @@ export function MobileNav() {
         );
       } catch {
         if (mounted) setUnreadNotifications(0);
+      } finally {
+        isFetching = false;
       }
     }
 
     void loadUnreadCount();
-    const interval = window.setInterval(loadUnreadCount, 30_000);
+    const interval = window.setInterval(() => void loadUnreadCount(), 30_000);
     return () => {
       mounted = false;
+      controller.abort();
       window.clearInterval(interval);
     };
   }, []);
 
   const navItems = useMemo((): MobileNavItem[] => {
     if (!roleResolved) {
-      return staffLoadingPlaceholderItems();
+      return loadingPlaceholderItems();
     }
 
     const showBrowseTab = isStaff && listingsHref !== "/";

@@ -62,7 +62,11 @@ export function LoginForm() {
 
       const session = data.session;
       if (session?.access_token) {
-        await syncNwSessionFromAccessToken(session.access_token, { fallbackRole: role });
+        try {
+          await syncNwSessionFromAccessToken(session.access_token, { fallbackRole: role });
+        } catch {
+          /* Network or parse failure; Supabase session still valid — redirect proceeds */
+        }
       }
 
       pushToast({
