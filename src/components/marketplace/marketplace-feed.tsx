@@ -421,8 +421,14 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
         <span className="mx-2 text-neutral-300" aria-hidden>
           ·
         </span>
-        <span className="text-neutral-500">Avg </span>
-        <span className="font-medium text-neutral-900">${(stats.avgPriceCents / 100).toFixed(2)}</span>
+        {stats.count > 0 ? (
+          <>
+            <span className="text-neutral-500">Avg </span>
+            <span className="font-medium text-neutral-900">${(stats.avgPriceCents / 100).toFixed(2)}</span>
+          </>
+        ) : (
+          <span className="text-neutral-500">Avg —</span>
+        )}
         <span className="mx-2 text-neutral-300" aria-hidden>
           ·
         </span>

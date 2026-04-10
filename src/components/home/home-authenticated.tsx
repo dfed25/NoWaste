@@ -4,18 +4,7 @@ import { Card } from "@/components/ui/card";
 import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
 import type { ListingItem } from "@/lib/marketplace";
-
-type HomeStep = {
-  step: string;
-  title: string;
-  desc: string;
-};
-
-const HOME_STEPS: readonly HomeStep[] = [
-  { step: "1", title: "Browse", desc: "Listings near you with clear pickup times." },
-  { step: "2", title: "Reserve", desc: "Checkout and receive a confirmation code." },
-  { step: "3", title: "Pick up", desc: "Show your code during the pickup window." },
-];
+import { SHARED_HOME_STEPS } from "@/components/home/home-steps";
 
 type HomeAuthenticatedProps = {
   listings: ListingItem[];
@@ -40,7 +29,7 @@ export function HomeAuthenticated({ listings }: HomeAuthenticatedProps) {
         </div>
 
         <ol className="grid gap-3 sm:grid-cols-3">
-          {HOME_STEPS.map((row) => (
+          {SHARED_HOME_STEPS.map((row) => (
             <li
               key={row.step}
               className="rounded-xl border border-neutral-200/90 bg-white/80 px-4 py-3 text-sm"

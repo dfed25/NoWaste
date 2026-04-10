@@ -5,12 +5,7 @@ import {
   MARKETING_LINK_BUTTON_PRIMARY,
   MARKETING_LINK_BUTTON_SECONDARY,
 } from "@/lib/ui/marketing-link-classes";
-
-const STEPS = [
-  { step: "1", title: "Browse", desc: "See surplus meals with pickup times near you." },
-  { step: "2", title: "Reserve", desc: "Check out in seconds with a confirmation code." },
-  { step: "3", title: "Pick up", desc: "Show your code during the pickup window." },
-] as const;
+import { SHARED_HOME_STEPS } from "@/components/home/home-steps";
 
 /**
  * Public landing: no marketplace data until the user signs in (see middleware + home page).
@@ -36,7 +31,7 @@ export function HomeMarketingLanding() {
         </div>
 
         <ol className="grid gap-3 sm:grid-cols-3">
-          {STEPS.map((row) => (
+          {SHARED_HOME_STEPS.map((row) => (
             <li
               key={row.step}
               className="rounded-xl border border-neutral-200/80 bg-white/90 px-4 py-3 text-left text-sm shadow-sm"
