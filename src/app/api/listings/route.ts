@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { restaurants } from "@/lib/marketplace";
-import { listManagedListings, saveListing } from "@/lib/marketplace-store";
+import { listAllListings, listManagedListings, saveListing } from "@/lib/marketplace-store";
 import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
 import { listingSchema } from "@/lib/validation";
 
@@ -43,6 +43,18 @@ export async function GET(request: Request) {
   if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Customers browse the full marketplace catalog (same data as server-rendered home).
+  if (context.role === "customer") {
+    try {
+      const listings = await listAllListings();
+      return NextResponse.json({ listings }, { status: 200 });
+    } catch (error) {
+      console.error("Failed to fetch marketplace listings", error);
+      return NextResponse.json({ error: "Failed to load listings" }, { status: 500 });
+    }
+  }
+
   if (!canManageListings(context.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

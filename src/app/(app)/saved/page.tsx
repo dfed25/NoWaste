@@ -2,8 +2,11 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
+import { listAllListings } from "@/lib/marketplace-store";
 
-export default function SavedListingsPage() {
+export default async function SavedListingsPage() {
+  const listings = await listAllListings();
+
   return (
     <section className="space-y-5">
       <Card className="space-y-3 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/25">
@@ -27,7 +30,7 @@ export default function SavedListingsPage() {
         </div>
       </Card>
 
-      <SavedListingsPanel />
+      <SavedListingsPanel initialListings={listings} />
     </section>
   );
 }
