@@ -5,6 +5,18 @@ import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
 import { listAllListings } from "@/lib/marketplace-store";
 
+type HomeStep = {
+  step: string;
+  title: string;
+  desc: string;
+};
+
+const HOME_STEPS: readonly HomeStep[] = [
+  { step: "1", title: "Browse", desc: "Listings near you with clear pickup times." },
+  { step: "2", title: "Reserve", desc: "Checkout and receive a confirmation code." },
+  { step: "3", title: "Pick up", desc: "Show your code during the pickup window." },
+];
+
 export default async function Home() {
   const listings = await listAllListings();
 
@@ -12,56 +24,33 @@ export default async function Home() {
     <section className="space-y-6 pb-8">
       <Card
         variant="elevated"
-        className="space-y-6 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/30"
+        className="space-y-5 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/25"
       >
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="brand">Live marketplace</Badge>
-            <Badge variant="neutral">Mobile-first</Badge>
-            <Badge variant="success">Fast checkout</Badge>
-          </div>
-          <h1 className="max-w-3xl text-title-xl text-neutral-900">
+        <div className="space-y-2">
+          <Badge variant="brand">Surplus marketplace</Badge>
+          <h1 className="max-w-2xl text-title-xl text-neutral-900">
             Rescue great food before it goes to waste.
           </h1>
-          <p className="max-w-2xl text-body-md text-neutral-600">
-            Browse discounted surplus meals nearby, reserve in seconds, save your favorite picks, and pick up during restaurant-defined windows.
+          <p className="max-w-xl text-body-md text-neutral-600">
+            Browse nearby surplus meals, reserve in seconds, and pick up during each restaurant&apos;s
+            window.
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Card className="border-neutral-200/80">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">Goal</p>
-            <p className="mt-1 text-lg font-semibold text-neutral-900">Waste reduction</p>
-          </Card>
-          <Card className="border-neutral-200/80">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">Customer value</p>
-            <p className="mt-1 text-lg font-semibold text-neutral-900">Affordable meals</p>
-          </Card>
-          <Card className="border-neutral-200/80">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">Restaurant value</p>
-            <p className="mt-1 text-lg font-semibold text-neutral-900">Recovered revenue</p>
-          </Card>
-        </div>
+        <ol className="grid gap-3 sm:grid-cols-3">
+          {HOME_STEPS.map((row) => (
+            <li
+              key={row.step}
+              className="rounded-xl border border-neutral-200/90 bg-white/80 px-4 py-3 text-sm"
+            >
+              <span className="text-xs font-semibold text-brand-700">{row.step}</span>
+              <p className="mt-1 font-semibold text-neutral-900">{row.title}</p>
+              <p className="mt-0.5 text-xs text-neutral-600">{row.desc}</p>
+            </li>
+          ))}
+        </ol>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <Card className="border-neutral-200/80">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">1</p>
-            <p className="mt-1 text-sm font-semibold text-neutral-900">Browse local listings</p>
-            <p className="mt-1 text-xs text-neutral-600">Filter by distance, diet, pickup time, and price.</p>
-          </Card>
-          <Card className="border-neutral-200/80">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">2</p>
-            <p className="mt-1 text-sm font-semibold text-neutral-900">Reserve instantly</p>
-            <p className="mt-1 text-xs text-neutral-600">Complete checkout and get a pickup confirmation code.</p>
-          </Card>
-          <Card className="border-neutral-200/80">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">3</p>
-            <p className="mt-1 text-sm font-semibold text-neutral-900">Pick up on time</p>
-            <p className="mt-1 text-xs text-neutral-600">Show your code and collect your rescued meal.</p>
-          </Card>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-1">
           <Link
             href="/listings"
             className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"

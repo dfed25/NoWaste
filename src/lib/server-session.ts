@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
+import { ADMIN_ROLE_COOKIE, normalizeRole, type AppRole } from "@/lib/admin";
 import { AUTH_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
 export const NW_SESSION_SIGNATURE_COOKIE_NAME = "nw-session-sig";
@@ -86,4 +86,14 @@ export function verifyServerSession(request: Request): VerifiedSession {
       scopedRestaurantId: role === "restaurant_staff" ? effectiveRestaurant : undefined,
     },
   };
+}
+
+/**
+ * When HMAC cookies are missing (before sync-session), still expose role from `nw-role`
+ * for nav UI. APIs should prefer {@link verifyServerSession}.
+ */
+export function readNwRoleCookieFallback(request: Request): AppRole | null {
+  const cookies = parseCookies(request.headers.get("cookie") ?? "");
+  if (cookies[AUTH_COOKIE_NAME] !== "1") return null;
+  return normalizeRole(cookies[ADMIN_ROLE_COOKIE]) ?? null;
 }
