@@ -46,6 +46,7 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
   );
   const [isLoading, setIsLoading] = useState(initialListings === undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
 
   useEffect(() => {
     if (initialListings !== undefined) {
@@ -213,6 +214,17 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
     return count;
   }, [dietary, keyword, maxDistanceMiles, maxPriceCents, onlyAvailable, pickupPart, savedOnly, sortBy]);
 
+  const advancedFilterCount = useMemo(() => {
+    let count = 0;
+    if (maxDistanceMiles !== "") count += 1;
+    if (pickupPart !== "any") count += 1;
+    if (dietary !== "any") count += 1;
+    if (maxPriceCents !== "") count += 1;
+    if (!onlyAvailable) count += 1;
+    if (savedOnly) count += 1;
+    return count;
+  }, [dietary, maxDistanceMiles, maxPriceCents, onlyAvailable, pickupPart, savedOnly]);
+
   const stats = useMemo(() => {
     if (filtered.length === 0) {
       return { count: 0, avgPriceCents: 0, nearestMiles: null as number | null };
@@ -253,10 +265,10 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-title-md">Find nearby surplus</h2>
-            <p className="text-sm text-neutral-600">Fresh listings from restaurants in your area.</p>
+            <p className="text-sm text-neutral-600">Search and sort; open more filters when you need them.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="neutral">{activeFilterCount} active filters</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="neutral">{activeFilterCount} active</Badge>
             <Badge variant="brand">{savedIds.length} saved</Badge>
             <Button variant="ghost" size="sm" onClick={resetFilters}>
               Reset
@@ -288,119 +300,136 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
           </label>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-neutral-800">Nearby (miles)</span>
-            <input
-              type="number"
-              min={0}
-              className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
-              placeholder="Any"
-              value={maxDistanceMiles}
-              onChange={(event) => {
-                const value = event.target.value;
-                setMaxDistanceMiles(value === "" ? "" : Math.max(0, Number(value)));
-              }}
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-neutral-800">Pickup time</span>
-            <select
-              className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
-              value={pickupPart}
-              onChange={(event) =>
-                setPickupPart(event.target.value as "any" | "afternoon" | "evening" | "night")
-              }
-            >
-              <option value="any">Any</option>
-              <option value="afternoon">Afternoon</option>
-              <option value="evening">Evening</option>
-              <option value="night">Night</option>
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-neutral-800">Dietary</span>
-            <select
-              className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
-              value={dietary}
-              onChange={(event) =>
-                setDietary(
-                  event.target.value as
-                    | "any"
-                    | "vegan"
-                    | "vegetarian"
-                    | "gluten_free"
-                    | "dairy_free",
-                )
-              }
-            >
-              <option value="any">Any</option>
-              <option value="vegan">Vegan</option>
-              <option value="vegetarian">Vegetarian</option>
-              <option value="gluten_free">Gluten-free</option>
-              <option value="dairy_free">Dairy-free</option>
-            </select>
-          </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setAdvancedFiltersOpen((o) => !o)}
+            aria-expanded={advancedFiltersOpen}
+          >
+            {advancedFiltersOpen ? "Hide" : "More"} filters
+            {advancedFilterCount > 0 && !advancedFiltersOpen ? ` (${advancedFilterCount})` : null}
+          </Button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-neutral-800">Max price (USD)</span>
-            <input
-              type="number"
-              min={0}
-              className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
-              placeholder="Any"
-              value={maxPriceCents === "" ? "" : (maxPriceCents / 100).toString()}
-              onChange={(event) => {
-                const dollars = event.target.value;
-                if (dollars === "") {
-                  setMaxPriceCents("");
-                  return;
-                }
-                const numeric = Number(dollars);
-                setMaxPriceCents(Number.isFinite(numeric) ? Math.round(Math.max(0, numeric) * 100) : "");
-              }}
-            />
-          </label>
+        {advancedFiltersOpen ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-neutral-800">Nearby (miles)</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
+                  placeholder="Any"
+                  value={maxDistanceMiles}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setMaxDistanceMiles(value === "" ? "" : Math.max(0, Number(value)));
+                  }}
+                />
+              </label>
 
-          <label className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800">
-            <input
-              type="checkbox"
-              checked={onlyAvailable}
-              onChange={(event) => setOnlyAvailable(event.target.checked)}
-            />
-            Only available now
-          </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-neutral-800">Pickup time</span>
+                <select
+                  className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
+                  value={pickupPart}
+                  onChange={(event) =>
+                    setPickupPart(event.target.value as "any" | "afternoon" | "evening" | "night")
+                  }
+                >
+                  <option value="any">Any</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="evening">Evening</option>
+                  <option value="night">Night</option>
+                </select>
+              </label>
 
-          <label className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800">
-            <input
-              type="checkbox"
-              checked={savedOnly}
-              onChange={(event) => setSavedOnly(event.target.checked)}
-            />
-            Saved picks only
-          </label>
-        </div>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-neutral-800">Dietary</span>
+                <select
+                  className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
+                  value={dietary}
+                  onChange={(event) =>
+                    setDietary(
+                      event.target.value as
+                        | "any"
+                        | "vegan"
+                        | "vegetarian"
+                        | "gluten_free"
+                        | "dairy_free",
+                    )
+                  }
+                >
+                  <option value="any">Any</option>
+                  <option value="vegan">Vegan</option>
+                  <option value="vegetarian">Vegetarian</option>
+                  <option value="gluten_free">Gluten-free</option>
+                  <option value="dairy_free">Dairy-free</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-neutral-800">Max price (USD)</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm"
+                  placeholder="Any"
+                  value={maxPriceCents === "" ? "" : (maxPriceCents / 100).toString()}
+                  onChange={(event) => {
+                    const dollars = event.target.value;
+                    if (dollars === "") {
+                      setMaxPriceCents("");
+                      return;
+                    }
+                    const numeric = Number(dollars);
+                    setMaxPriceCents(Number.isFinite(numeric) ? Math.round(Math.max(0, numeric) * 100) : "");
+                  }}
+                />
+              </label>
+
+              <label className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800">
+                <input
+                  type="checkbox"
+                  checked={onlyAvailable}
+                  onChange={(event) => setOnlyAvailable(event.target.checked)}
+                />
+                Only available now
+              </label>
+
+              <label className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800">
+                <input
+                  type="checkbox"
+                  checked={savedOnly}
+                  onChange={(event) => setSavedOnly(event.target.checked)}
+                />
+                Saved picks only
+              </label>
+            </div>
+          </>
+        ) : null}
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="border-neutral-200/80">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Results</p>
-          <p className="mt-1 text-lg font-semibold text-neutral-900">{stats.count}</p>
-        </Card>
-        <Card className="border-neutral-200/80">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Average price</p>
-          <p className="mt-1 text-lg font-semibold text-neutral-900">${(stats.avgPriceCents / 100).toFixed(2)}</p>
-        </Card>
-        <Card className="border-neutral-200/80">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Closest pickup</p>
-          <p className="mt-1 text-lg font-semibold text-neutral-900">
-            {stats.nearestMiles === null ? "-" : `${stats.nearestMiles.toFixed(1)} mi`}
-          </p>
-        </Card>
+      <div className="rounded-xl border border-neutral-200/80 bg-white/90 px-4 py-2.5 text-sm text-neutral-700">
+        <span className="font-semibold text-neutral-900">{stats.count}</span>
+        <span className="text-neutral-500"> results</span>
+        <span className="mx-2 text-neutral-300" aria-hidden>
+          ·
+        </span>
+        <span className="text-neutral-500">Avg </span>
+        <span className="font-medium text-neutral-900">${(stats.avgPriceCents / 100).toFixed(2)}</span>
+        <span className="mx-2 text-neutral-300" aria-hidden>
+          ·
+        </span>
+        <span className="text-neutral-500">Closest </span>
+        <span className="font-medium text-neutral-900">
+          {stats.nearestMiles === null ? "—" : `${stats.nearestMiles.toFixed(1)} mi`}
+        </span>
       </div>
 
       {loadError ? (
