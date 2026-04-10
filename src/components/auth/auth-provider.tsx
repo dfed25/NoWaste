@@ -29,6 +29,15 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Token that should own signed nw-* cookies; late responses compare against this. */
+let nwSyncAuthoritativeToken: string | null = null;
+let nwSyncActiveController: AbortController | null = null;
+
+function abortNwSessionSyncInFlight(): void {
+  nwSyncActiveController?.abort();
+  nwSyncActiveController = null;
+}
+
 function fallbackRoleFromUser(user: User | undefined): AppRole {
   const meta = user?.user_metadata;
   return (
@@ -40,12 +49,16 @@ function fallbackRoleFromUser(user: User | undefined): AppRole {
 
 function syncNwSessionFor(
   session: Session | null,
+  opts?: { signal?: AbortSignal },
 ): Promise<{ ok: boolean; signed: boolean }> {
   if (!session?.access_token) {
     return Promise.resolve({ ok: false, signed: false });
   }
   const fallback = fallbackRoleFromUser(session.user);
-  return syncNwSessionFromAccessToken(session.access_token, { fallbackRole: fallback });
+  return syncNwSessionFromAccessToken(session.access_token, {
+    fallbackRole: fallback,
+    signal: opts?.signal,
+  });
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -63,22 +76,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     function syncNwSessionIfNeeded(next: Session | null): void {
       const token = next?.access_token ?? null;
+      nwSyncAuthoritativeToken = token;
+
       if (!token) {
         lastSyncedAccessToken = null;
         syncInflight.clear();
+        abortNwSessionSyncInFlight();
         void clearNwSessionCookies();
         return;
       }
       if (token === lastSyncedAccessToken) return;
       if (syncInflight.has(token)) return;
+
+      abortNwSessionSyncInFlight();
+      const controller = new AbortController();
+      nwSyncActiveController = controller;
       syncInflight.add(token);
-      void syncNwSessionFor(next).then((result) => {
-        syncInflight.delete(token);
-        if (!mounted) return;
-        if (result.ok) {
-          lastSyncedAccessToken = token;
-        }
-      });
+
+      void syncNwSessionFor(next, { signal: controller.signal })
+        .then((result) => {
+          syncInflight.delete(token);
+          if (!mounted) return;
+          if (nwSyncAuthoritativeToken !== token) return;
+          if (controller.signal.aborted) return;
+          if (result.ok) {
+            lastSyncedAccessToken = token;
+          }
+        })
+        .finally(() => {
+          if (nwSyncActiveController === controller) {
+            nwSyncActiveController = null;
+          }
+        });
     }
 
     try {
@@ -135,6 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const supabase = getSupabaseBrowserClient();
           await supabase.auth.signOut();
         } finally {
+          nwSyncAuthoritativeToken = null;
+          abortNwSessionSyncInFlight();
           setSession(null);
           syncAuthCookies(null);
           void clearNwSessionCookies();
