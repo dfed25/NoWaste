@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useSessionRoleNav } from "@/hooks/use-session-role-nav";
 import { cn } from "@/lib/cn";
 import {
@@ -65,12 +66,23 @@ function loadingPlaceholderItems(): MobileNavItem[] {
   return baseNavItems.map((item) => ({ ...item, pending: true }));
 }
 
+const loggedOutNavItems: MobileNavItem[] = [
+  { href: "/", label: "Home", glyph: "home", key: "home" },
+  { href: "/get-started", label: "Start", glyph: "browse", key: "start" },
+  { href: "/auth/login", label: "Log in", glyph: "account", key: "login" },
+];
+
 export function MobileNav() {
   const pathname = usePathname();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const { user, isLoading: authLoading } = useAuth();
   const { roleResolved, isStaff, listingsHref, listingsLabelMobile } = useSessionRoleNav();
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
     let mounted = true;
     let isFetching = false;
     let activeController: AbortController | null = null;
@@ -112,11 +124,15 @@ export function MobileNav() {
       activeController?.abort();
       window.clearInterval(interval);
     };
-  }, []);
+  }, [user]);
 
   const navItems = useMemo((): MobileNavItem[] => {
-    if (!roleResolved) {
+    if (!roleResolved || authLoading) {
       return loadingPlaceholderItems();
+    }
+
+    if (!user) {
+      return loggedOutNavItems;
     }
 
     const showBrowseTab = isStaff && listingsHref !== "/";
@@ -147,7 +163,7 @@ export function MobileNav() {
     core.push({ ...baseNavItems[3] }, { ...baseNavItems[4] });
 
     return core;
-  }, [isStaff, listingsHref, listingsLabelMobile, roleResolved]);
+  }, [authLoading, isStaff, listingsHref, listingsLabelMobile, roleResolved, user]);
 
   const linkClass = (isActive: boolean) =>
     cn(
@@ -162,9 +178,9 @@ export function MobileNav() {
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200/90 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       aria-label="Mobile primary navigation"
-      aria-busy={!roleResolved || undefined}
+      aria-busy={!roleResolved || authLoading || undefined}
     >
-      {!roleResolved ? (
+      {!roleResolved || authLoading ? (
         <span className="sr-only">Loading navigation tabs</span>
       ) : null}
       <ul className="mx-auto flex max-w-lg snap-x snap-mandatory gap-0.5 overflow-x-auto px-3 py-1.5 [scrollbar-width:thin] [scrollbar-color:rgb(203_213_225)_transparent]">

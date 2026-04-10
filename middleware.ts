@@ -30,10 +30,6 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(prefix),
   );
 
-  if (pathname === "/" && !isAuthenticated) {
-    return NextResponse.redirect(new URL("/get-started", request.url));
-  }
-
   if (pathname === "/get-started" && isAuthenticated && role) {
     return NextResponse.redirect(new URL(routeForRole(role), request.url));
   }

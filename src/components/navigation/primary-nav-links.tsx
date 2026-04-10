@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useSessionRoleNav } from "@/hooks/use-session-role-nav";
 
 export function PrimaryNavLinks() {
+  const { user, isLoading: authLoading } = useAuth();
   const { roleResolved, isStaff, listingsHref, listingsLabelDesktop } = useSessionRoleNav();
 
-  if (!roleResolved) {
+  if (!roleResolved || authLoading) {
     return (
       <nav
         className="hidden min-h-5 min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-400 md:flex"
@@ -14,6 +16,16 @@ export function PrimaryNavLinks() {
         aria-label="Loading navigation"
       >
         <span className="select-none">…</span>
+      </nav>
+    );
+  }
+
+  if (!user) {
+    return (
+      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-600 md:flex">
+        <Link href="/get-started" className="hover:text-neutral-900">
+          How it works
+        </Link>
       </nav>
     );
   }
