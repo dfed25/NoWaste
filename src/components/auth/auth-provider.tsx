@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { syncNwSessionFromAccessToken } from "@/lib/auth/sync-nw-session-client";
+import {
+  clearNwSessionCookies,
+  syncNwSessionFromAccessToken,
+} from "@/lib/auth/sync-nw-session-client";
 import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 import { normalizeRole, type AppRole } from "@/lib/admin";
 import {
@@ -35,10 +38,14 @@ function fallbackRoleFromUser(user: User | undefined): AppRole {
   );
 }
 
-function syncNwSessionFor(session: Session | null): void {
-  if (!session?.access_token) return;
+function syncNwSessionFor(
+  session: Session | null,
+): Promise<{ ok: boolean; signed: boolean }> {
+  if (!session?.access_token) {
+    return Promise.resolve({ ok: false, signed: false });
+  }
   const fallback = fallbackRoleFromUser(session.user);
-  void syncNwSessionFromAccessToken(session.access_token, { fallbackRole: fallback });
+  return syncNwSessionFromAccessToken(session.access_token, { fallbackRole: fallback });
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -49,18 +56,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let supabase;
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
-    /** Avoids duplicate sync when getSession and the first onAuthStateChange share the same JWT. */
+    /** Set only after `/api/auth/sync-session` succeeds so a failed sync can retry on the next event. */
     let lastSyncedAccessToken: string | null = null;
+    /** Suppresses duplicate POSTs for the same JWT while a sync is in flight. */
+    const syncInflight = new Set<string>();
 
     function syncNwSessionIfNeeded(next: Session | null): void {
       const token = next?.access_token ?? null;
       if (!token) {
         lastSyncedAccessToken = null;
+        syncInflight.clear();
+        void clearNwSessionCookies();
         return;
       }
       if (token === lastSyncedAccessToken) return;
-      lastSyncedAccessToken = token;
-      syncNwSessionFor(next);
+      if (syncInflight.has(token)) return;
+      syncInflight.add(token);
+      void syncNwSessionFor(next).then((result) => {
+        syncInflight.delete(token);
+        if (!mounted) return;
+        if (result.ok) {
+          lastSyncedAccessToken = token;
+        }
+      });
     }
 
     try {
@@ -74,13 +92,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setIsLoading(false);
-      syncAuthCookies(data.session);
-      syncNwSessionIfNeeded(data.session);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setSession(data.session);
+        syncAuthCookies(data.session);
+        syncNwSessionIfNeeded(data.session);
+      })
+      .catch((err) => {
+        console.error("[AuthProvider] getSession failed", err);
+        if (!mounted) return;
+        setSession(null);
+        syncAuthCookies(null);
+        syncNwSessionIfNeeded(null);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
 
     ({
       data: { subscription },
@@ -108,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } finally {
           setSession(null);
           syncAuthCookies(null);
+          void clearNwSessionCookies();
         }
       },
     }),

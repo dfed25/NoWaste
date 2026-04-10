@@ -44,3 +44,18 @@ export async function syncNwSessionFromAccessToken(
     return { ok: false, signed: false };
   }
 }
+
+/** Clears httpOnly `nw-*` cookies via the server; call when the Supabase session is gone. */
+export async function clearNwSessionCookies(): Promise<void> {
+  try {
+    const res = await fetch("/api/auth/clear-nw-session", {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      invalidateSessionRoleCache();
+    }
+  } catch {
+    /* ignore */
+  }
+}
