@@ -50,7 +50,10 @@ export function SavedListingsPanel({ compact = false, initialListings }: SavedLi
     let mounted = true;
     async function load() {
       try {
-        const response = await fetch("/api/listings", { cache: "no-store" });
+        const response = await fetch("/api/listings", {
+          cache: "no-store",
+          credentials: "include",
+        });
         const payload = (await response.json()) as {
           listings?: ListingItem[];
           error?: string;

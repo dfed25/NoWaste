@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/states/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
+import { useAuth } from "@/components/auth/auth-provider";
+import type { AccountSettingsInput } from "@/lib/validation";
 
 type Props = {
   listingId: string;
@@ -29,12 +31,14 @@ export function ReservationCheckoutForm({
 }: Props) {
   const router = useRouter();
   const { pushToast } = useToast();
+  const { user } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationCheckoutSchema),
@@ -45,6 +49,37 @@ export function ReservationCheckoutForm({
       quantity: 1,
     },
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/account/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as {
+          profile?: AccountSettingsInput;
+        };
+        if (!mounted || !response.ok || !payload.profile) return;
+        const p = payload.profile;
+        reset({
+          name: p.displayName?.trim() || user?.user_metadata?.display_name || "",
+          email: (p.email?.trim() || user?.email || "").trim(),
+          phone: p.phone?.trim() || "",
+          quantity: 1,
+        });
+      } catch {
+        /* keep empty defaults */
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      mounted = false;
+    };
+  }, [reset, user?.email, user?.user_metadata?.display_name]);
 
   const quantity = Math.max(1, Number(watch("quantity")) || 1);
   const totalCents = unitPriceCents * quantity;

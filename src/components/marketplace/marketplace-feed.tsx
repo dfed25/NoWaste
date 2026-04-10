@@ -61,7 +61,10 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
     async function loadListings() {
       try {
         setIsLoading(true);
-        const response = await fetch("/api/listings", { cache: "no-store" });
+        const response = await fetch("/api/listings", {
+          cache: "no-store",
+          credentials: "include",
+        });
         const payload = (await response.json()) as {
           listings?: ListingItem[];
           error?: string;
