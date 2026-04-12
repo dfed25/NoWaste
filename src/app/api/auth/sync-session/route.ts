@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ADMIN_ROLE_COOKIE, normalizeRole, type AppRole } from "@/lib/admin";
-import { AUTH_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import { AUTH_COOKIE_NAME, CUSTOMER_ID_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import { encodeSignedCustomerId } from "@/lib/customer-id-cookie";
 import {
   buildNwSessionCanonical,
   NW_SESSION_SIGNATURE_COOKIE_NAME,
@@ -109,5 +110,11 @@ export async function POST(request: Request) {
     res.cookies.set(RESTAURANT_ID_COOKIE_NAME, "", { ...httpOnly, maxAge: 0 });
   }
   res.cookies.set(NW_SESSION_SIGNATURE_COOKIE_NAME, signature, httpOnly);
+
+  const signedUserId = encodeSignedCustomerId(user.id);
+  if (signedUserId) {
+    res.cookies.set(CUSTOMER_ID_COOKIE_NAME, signedUserId, httpOnly);
+  }
+
   return res;
 }

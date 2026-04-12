@@ -2,10 +2,17 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
+import type { ListingItem } from "@/lib/marketplace";
 import { listAllListings } from "@/lib/marketplace-store";
 
 export default async function SavedListingsPage() {
-  const listings = await listAllListings();
+  let listings: ListingItem[] | undefined;
+  try {
+    listings = await listAllListings();
+  } catch (error) {
+    console.error("Saved page: failed to preload listings", error);
+    listings = undefined;
+  }
 
   return (
     <section className="space-y-5">

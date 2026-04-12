@@ -28,6 +28,7 @@ export function CustomerOnboardingForm() {
   const { pushToast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [existingProfile, setExistingProfile] = useState<AccountSettingsInput | null>(null);
 
   const {
     register,
@@ -51,6 +52,7 @@ export function CustomerOnboardingForm() {
         const res = await fetch("/api/account/me", { credentials: "include", cache: "no-store" });
         const data = (await res.json()) as { profile?: AccountSettingsInput };
         if (!mounted || !res.ok || !data.profile) return;
+        setExistingProfile(data.profile);
         reset({
           displayName: data.profile.displayName || user?.user_metadata?.display_name || "",
           phone: data.profile.phone || "",
@@ -69,13 +71,14 @@ export function CustomerOnboardingForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
+      const prior = existingProfile;
       const body: AccountSettingsInput = {
         displayName: values.displayName,
         email: values.email.trim(),
         phone: values.phone,
-        dietaryPreferences: [],
-        defaultMaxDistanceMiles: 10,
-        marketingOptIn: false,
+        dietaryPreferences: prior?.dietaryPreferences ?? [],
+        defaultMaxDistanceMiles: prior?.defaultMaxDistanceMiles ?? 10,
+        marketingOptIn: prior?.marketingOptIn ?? false,
       };
 
       const res = await fetch("/api/account/me", {

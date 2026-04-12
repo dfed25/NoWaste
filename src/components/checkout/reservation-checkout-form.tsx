@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,12 +33,14 @@ export function ReservationCheckoutForm({
   const { pushToast } = useToast();
   const { user } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const prefillApplied = useRef(false);
 
   const {
     register,
     handleSubmit,
     watch,
     reset,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationCheckoutSchema),
@@ -63,13 +65,34 @@ export function ReservationCheckoutForm({
           profile?: AccountSettingsInput;
         };
         if (!mounted || !response.ok || !payload.profile) return;
+        if (prefillApplied.current) return;
+
         const p = payload.profile;
-        reset({
-          name: p.displayName?.trim() || user?.user_metadata?.display_name || "",
-          email: (p.email?.trim() || user?.email || "").trim(),
-          phone: p.phone?.trim() || "",
-          quantity: 1,
-        });
+        const v = getValues();
+        const name =
+          (v.name?.trim() && v.name) ||
+          p.displayName?.trim() ||
+          (typeof user?.user_metadata?.display_name === "string"
+            ? user.user_metadata.display_name
+            : "") ||
+          "";
+        const email =
+          (v.email?.trim() && v.email) ||
+          (p.email?.trim() || "").trim() ||
+          (user?.email ?? "").trim();
+        const phone = (v.phone?.trim() && v.phone) || p.phone?.trim() || "";
+        const quantity = v.quantity && v.quantity > 0 ? v.quantity : 1;
+
+        reset(
+          {
+            name,
+            email,
+            phone,
+            quantity,
+          },
+          { keepDefaultValues: true },
+        );
+        prefillApplied.current = true;
       } catch {
         /* keep empty defaults */
       }
@@ -79,7 +102,7 @@ export function ReservationCheckoutForm({
     return () => {
       mounted = false;
     };
-  }, [reset, user?.email, user?.user_metadata?.display_name]);
+  }, [getValues, reset, user?.email, user?.user_metadata?.display_name]);
 
   const quantity = Math.max(1, Number(watch("quantity")) || 1);
   const totalCents = unitPriceCents * quantity;
@@ -166,4 +189,3 @@ export function ReservationCheckoutForm({
     </form>
   );
 }
-

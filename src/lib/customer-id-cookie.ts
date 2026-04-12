@@ -64,11 +64,14 @@ export function parseCustomerIdCookie(rawValue: string | undefined): ParsedCusto
   }
 
   if (isAuthUserId(rawValue)) {
-    // Supabase user id is authoritative; optional HMAC resign when secret exists.
+    // Unsigned UUIDs are trivially forgeable; only trust when no signing secret (local dev).
     const secret = getCookieSecret();
+    if (secret) {
+      return { needsResign: false };
+    }
     return {
       customerId: rawValue,
-      needsResign: Boolean(secret),
+      needsResign: false,
     };
   }
 
