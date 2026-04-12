@@ -13,6 +13,8 @@ export type ListingItem = {
   priceCents: number;
   quantityRemaining: number;
   allergyNotes?: string;
+  /** Public HTTPS image URLs for food photos (e.g. Unsplash). Shown in marketplace and detail views. */
+  imageUrls?: string[];
 };
 
 export type ListingLifecycleStatus = "active" | "paused" | "archived";
@@ -90,6 +92,10 @@ export const listings: ListingItem[] = [
     priceCents: 899,
     quantityRemaining: 6,
     allergyNotes: "Contains sesame.",
+    imageUrls: [
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80",
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200&q=80",
+    ],
   },
   {
     id: "l2",
@@ -104,6 +110,10 @@ export const listings: ListingItem[] = [
     priceCents: 650,
     quantityRemaining: 10,
     allergyNotes: "Contains wheat, eggs, and dairy.",
+    imageUrls: [
+      "https://images.unsplash.com/photo-1509440159596-0249088770ff?w=1200&q=80",
+      "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=1200&q=80",
+    ],
   },
   {
     id: "l3",
@@ -117,6 +127,7 @@ export const listings: ListingItem[] = [
     dietary: ["vegan", "gluten_free"],
     priceCents: 1099,
     quantityRemaining: 4,
+    imageUrls: ["https://images.unsplash.com/photo-1540420773420-3366772f4999?w=1200&q=80"],
   },
 ];
 

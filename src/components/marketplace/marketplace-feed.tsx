@@ -14,6 +14,7 @@ import {
   readSavedListingIdsFromStorage,
   writeSavedListingIdsToStorage,
 } from "@/lib/saved-listings";
+import { ListingCardPhotos } from "@/components/marketplace/listing-card-photos";
 
 type SortBy = "recommended" | "price_low" | "price_high" | "distance" | "pickup_soon";
 
@@ -203,6 +204,19 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
     sortBy,
     sourceListings,
   ]);
+
+  const groupedByRestaurant = useMemo(() => {
+    const map = new Map<string, { name: string; items: ListingItem[] }>();
+    for (const listing of filtered) {
+      const existing = map.get(listing.restaurantId);
+      if (existing) {
+        existing.items.push(listing);
+      } else {
+        map.set(listing.restaurantId, { name: listing.restaurantName, items: [listing] });
+      }
+    }
+    return [...map.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
+  }, [filtered]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -464,80 +478,96 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
           description="Try broadening distance, time, or dietary options."
         />
       ) : (
-        <div className="grid gap-3">
-          {filtered.map((listing) => {
-            const isSaved = savedSet.has(listing.id);
-            const soldOut = listing.quantityRemaining <= 0;
-
-            return (
-              <Card
-                key={listing.id}
-                className="space-y-3 border-neutral-200/80 transition-all hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-neutral-900">{listing.title}</h3>
-                  <p className="text-sm font-semibold text-neutral-800">
-                    ${(listing.priceCents / 100).toFixed(2)}
-                  </p>
-                </div>
-
-                <p className="text-sm text-neutral-600">{listing.description}</p>
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {listing.dietary.length > 0 ? (
-                    listing.dietary.map((tag) => (
-                      <Badge key={tag} variant="neutral">
-                        {tag.replaceAll("_", " ")}
-                      </Badge>
-                    ))
-                  ) : (
-                    <Badge variant="neutral">chef selection</Badge>
-                  )}
-                  <Badge variant={soldOut ? "danger" : "brand"}>
-                    {soldOut ? "Sold out" : `${listing.quantityRemaining} left`}
-                  </Badge>
-                  {isSaved ? <Badge variant="success">Saved</Badge> : null}
-                </div>
-
+        <div className="space-y-8">
+          {groupedByRestaurant.map(([restaurantId, group]) => (
+            <section key={restaurantId} className="space-y-3">
+              <div className="border-b border-neutral-200/90 pb-1">
+                <h3 className="text-title-md text-neutral-900">{group.name}</h3>
                 <p className="text-xs text-neutral-500">
-                  {listing.restaurantName} · {listing.distanceMiles.toFixed(1)} mi · Pickup{" "}
-                  {new Date(listing.pickupWindowStart).toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {group.items.length} listing{group.items.length === 1 ? "" : "s"} nearby
                 </p>
+              </div>
+              <div className="grid gap-3">
+                {group.items.map((listing) => {
+                  const isSaved = savedSet.has(listing.id);
+                  const soldOut = listing.quantityRemaining <= 0;
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    aria-label={isSaved ? `Unsave listing ${listing.title}` : `Save listing ${listing.title}`}
-                    onClick={() => toggleSaved(listing.id)}
-                    className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
-                  >
-                    {isSaved ? "Unsave" : "Save"}
-                  </button>
-                  {soldOut ? (
-                    <span className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-200 px-3 text-sm font-medium text-neutral-500">
-                      Checkout unavailable
-                    </span>
-                  ) : (
-                    <Link
-                      href={`/checkout/${listing.id}`}
-                      className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                  return (
+                    <Card
+                      key={listing.id}
+                      className="min-w-0 space-y-3 border-neutral-200/80 transition-all hover:-translate-y-0.5 hover:shadow-md"
                     >
-                      Quick reserve
-                    </Link>
-                  )}
-                  <Link
-                    href={`/listings/${listing.id}`}
-                    className="inline-flex h-9 items-center justify-center rounded-xl bg-white px-3 text-sm font-medium text-neutral-900 ring-1 ring-neutral-300 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
-                  >
-                    View listing
-                  </Link>
-                </div>
-              </Card>
-            );
-          })}
+                      <ListingCardPhotos imageUrls={listing.imageUrls} title={listing.title} />
+
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="min-w-0 text-base font-semibold text-neutral-900">{listing.title}</h3>
+                        <p className="shrink-0 text-sm font-semibold text-neutral-800">
+                          ${(listing.priceCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <p className="text-sm text-neutral-600">{listing.description}</p>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {listing.dietary.length > 0 ? (
+                          listing.dietary.map((tag) => (
+                            <Badge key={tag} variant="neutral">
+                              {tag.replaceAll("_", " ")}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="neutral">chef selection</Badge>
+                        )}
+                        <Badge variant={soldOut ? "danger" : "brand"}>
+                          {soldOut ? "Sold out" : `${listing.quantityRemaining} left`}
+                        </Badge>
+                        {isSaved ? <Badge variant="success">Saved</Badge> : null}
+                      </div>
+
+                      <p className="text-xs text-neutral-500">
+                        {listing.distanceMiles.toFixed(1)} mi · Pickup{" "}
+                        {new Date(listing.pickupWindowStart).toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          aria-label={
+                            isSaved ? `Unsave listing ${listing.title}` : `Save listing ${listing.title}`
+                          }
+                          onClick={() => toggleSaved(listing.id)}
+                          className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+                        >
+                          {isSaved ? "Unsave" : "Save"}
+                        </button>
+                        {soldOut ? (
+                          <span className="inline-flex h-9 items-center justify-center rounded-xl bg-neutral-200 px-3 text-sm font-medium text-neutral-500">
+                            Checkout unavailable
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/checkout/${listing.id}`}
+                            className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                          >
+                            Quick reserve
+                          </Link>
+                        )}
+                        <Link
+                          href={`/listings/${listing.id}`}
+                          className="inline-flex h-9 items-center justify-center rounded-xl bg-white px-3 text-sm font-medium text-neutral-900 ring-1 ring-neutral-300 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+                        >
+                          View listing
+                        </Link>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>

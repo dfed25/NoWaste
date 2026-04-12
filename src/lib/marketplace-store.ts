@@ -109,6 +109,15 @@ function asIsoDate(value: unknown): string | undefined {
   return parsed.toISOString();
 }
 
+function asImageUrlList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const urls = value.filter(
+    (item): item is string =>
+      typeof item === "string" && /^https:\/\//i.test(item.trim()),
+  );
+  return urls.length > 0 ? urls : undefined;
+}
+
 function normalizeManagedListing(value: unknown): ManagedListing | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
@@ -174,6 +183,7 @@ function normalizeManagedListing(value: unknown): ManagedListing | null {
     createdAt,
     updatedAt,
     allergyNotes: asNonEmptyString(record.allergyNotes),
+    imageUrls: asImageUrlList(record.imageUrls),
   };
 }
 

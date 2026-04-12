@@ -61,7 +61,11 @@ export function CustomerProfileGate({ children }: { children: React.ReactNode })
 
   if (authLoading || !roleResolved) {
     return (
-      <div className="py-16 text-center text-sm text-neutral-500" role="status" aria-live="polite">
+      <div
+        className="w-full min-w-0 py-16 text-center text-sm text-neutral-500"
+        role="status"
+        aria-live="polite"
+      >
         Loading…
       </div>
     );
@@ -69,7 +73,11 @@ export function CustomerProfileGate({ children }: { children: React.ReactNode })
 
   if (user && isCustomer && !profileGateReady) {
     return (
-      <div className="py-16 text-center text-sm text-neutral-500" role="status" aria-live="polite">
+      <div
+        className="w-full min-w-0 py-16 text-center text-sm text-neutral-500"
+        role="status"
+        aria-live="polite"
+      >
         Loading your profile…
       </div>
     );
