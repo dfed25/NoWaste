@@ -24,7 +24,7 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
   const isSoldOut = listing.quantityRemaining < 1;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       {cancelled ? (
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           <p className="text-sm">
