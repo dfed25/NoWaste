@@ -22,7 +22,7 @@ export default async function DashboardPage() {
   }
   const restaurantId = session.user.scopedRestaurantId;
   if (!restaurantId) {
-    redirect("/");
+    redirect("/onboarding/restaurant");
   }
 
   const data = await getRestaurantDashboardData(restaurantId);
@@ -72,9 +72,6 @@ export default async function DashboardPage() {
         </Link>
         <Link className="text-brand-700 hover:underline" href="/donation/workflow">
           Donation workflow
-        </Link>
-        <Link className="text-brand-700 hover:underline" href="/admin">
-          Admin panel
         </Link>
       </div>
     </section>
