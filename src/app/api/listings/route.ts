@@ -1,11 +1,30 @@
 import { NextResponse } from "next/server";
+import type { ListingItem, ManagedListing } from "@/lib/marketplace";
 import { restaurants } from "@/lib/marketplace";
-import { listManagedListings, saveListing } from "@/lib/marketplace-store";
+import { listAllListings, listManagedListings, saveListing } from "@/lib/marketplace-store";
 import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
 import { listingSchema } from "@/lib/validation";
 
 function canManageListings(role: string | undefined) {
   return role === "restaurant_staff" || role === "admin";
+}
+
+/** Strip management-only fields (ManagedListing) before returning to customers. */
+function toPublicListingItem(m: ListingItem | ManagedListing): ListingItem {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    restaurantId: m.restaurantId,
+    restaurantName: m.restaurantName,
+    distanceMiles: m.distanceMiles,
+    pickupWindowStart: m.pickupWindowStart,
+    pickupWindowEnd: m.pickupWindowEnd,
+    dietary: m.dietary,
+    priceCents: m.priceCents,
+    quantityRemaining: m.quantityRemaining,
+    allergyNotes: m.allergyNotes,
+  };
 }
 
 function resolveTargetRestaurantId(
@@ -43,6 +62,19 @@ export async function GET(request: Request) {
   if (!context.isAuthenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Customers browse the full marketplace catalog (same data as server-rendered home).
+  if (context.role === "customer") {
+    try {
+      const raw = await listAllListings();
+      const listings = raw.map(toPublicListingItem);
+      return NextResponse.json({ listings }, { status: 200 });
+    } catch (error) {
+      console.error("Failed to fetch marketplace listings", error);
+      return NextResponse.json({ error: "Failed to load listings" }, { status: 500 });
+    }
+  }
+
   if (!canManageListings(context.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

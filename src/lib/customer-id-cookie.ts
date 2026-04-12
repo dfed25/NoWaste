@@ -37,6 +37,11 @@ function isLegacyCustomerId(value: string) {
   return /^guest:[^\s]+@[^\s]+\.[^\s]+$/i.test(value);
 }
 
+/** Supabase Auth user id (UUID) set on `nw-user-id` by the browser after login. */
+function isAuthUserId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -55,6 +60,18 @@ export function parseCustomerIdCookie(rawValue: string | undefined): ParsedCusto
     return {
       customerId: rawValue,
       needsResign: Boolean(secret),
+    };
+  }
+
+  if (isAuthUserId(rawValue)) {
+    // Unsigned UUIDs are trivially forgeable; only trust when no signing secret (local dev).
+    const secret = getCookieSecret();
+    if (secret) {
+      return { needsResign: false };
+    }
+    return {
+      customerId: rawValue,
+      needsResign: false,
     };
   }
 

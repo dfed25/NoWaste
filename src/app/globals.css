@@ -3,6 +3,7 @@
 html {
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 /* Subtle tap targets on mobile; avoid a blank flash on non-interactive chrome. */

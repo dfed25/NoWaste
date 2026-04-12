@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { CustomerProfileGate } from "@/components/home/customer-profile-gate";
 import { MarketplaceFeed } from "@/components/marketplace/marketplace-feed";
 import { SavedListingsPanel } from "@/components/marketplace/saved-listings-panel";
 import type { ListingItem } from "@/lib/marketplace";
@@ -12,6 +13,7 @@ type HomeAuthenticatedProps = {
 
 export function HomeAuthenticated({ listings }: HomeAuthenticatedProps) {
   return (
+    <CustomerProfileGate>
     <section className="space-y-6 pb-8">
       <Card
         variant="elevated"
@@ -79,5 +81,6 @@ export function HomeAuthenticated({ listings }: HomeAuthenticatedProps) {
         </Card>
       </div>
     </section>
+    </CustomerProfileGate>
   );
 }

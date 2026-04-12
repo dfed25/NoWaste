@@ -10,7 +10,7 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+    <div className="min-h-screen min-w-0 max-w-[100vw] overflow-x-hidden bg-neutral-50 text-neutral-900">
       <header className="sticky top-0 z-30 border-b border-neutral-200/90 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-3 px-4 md:h-14 md:gap-5 md:px-6">
           <Link
@@ -25,7 +25,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl px-4 py-5 pb-24 md:px-6 md:py-7 md:pb-10">
+      <main className="mx-auto min-w-0 w-full max-w-5xl overflow-x-hidden px-4 py-5 pb-24 md:px-6 md:py-7 md:pb-10">
         {children}
       </main>
       <MobileNav />

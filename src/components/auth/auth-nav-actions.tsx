@@ -30,7 +30,7 @@ export function AuthNavActions() {
           Log in
         </Link>
         <Link
-          href="/auth/sign-up"
+          href="/get-started"
           className="rounded-lg bg-brand-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-brand-700 md:px-2.5 md:py-1.5 md:text-xs"
         >
           <span className="md:hidden">Join</span>

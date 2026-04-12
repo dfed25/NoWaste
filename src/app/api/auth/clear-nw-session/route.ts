@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE_COOKIE } from "@/lib/admin";
-import { AUTH_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import { AUTH_COOKIE_NAME, CUSTOMER_ID_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 import { NW_SESSION_SIGNATURE_COOKIE_NAME } from "@/lib/server-session";
 
 /**
@@ -18,6 +18,7 @@ export async function POST() {
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(AUTH_COOKIE_NAME, "", httpOnly);
+  res.cookies.set(CUSTOMER_ID_COOKIE_NAME, "", httpOnly);
   res.cookies.set(RESTAURANT_ID_COOKIE_NAME, "", httpOnly);
   res.cookies.set(NW_SESSION_SIGNATURE_COOKIE_NAME, "", httpOnly);
   res.cookies.set(ADMIN_ROLE_COOKIE, "", roleVisible);

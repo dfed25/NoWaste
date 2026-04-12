@@ -13,8 +13,8 @@ import {
   clearNwSessionCookies,
   syncNwSessionFromAccessToken,
 } from "@/lib/auth/sync-nw-session-client";
-import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 import { normalizeRole, type AppRole } from "@/lib/admin";
+import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 import {
   AUTH_COOKIE_NAME,
   getSupabaseBrowserClient,
@@ -191,7 +191,7 @@ function syncAuthCookies(session: Session | null) {
 
   if (session) {
     document.cookie = `${AUTH_COOKIE_NAME}=1; Path=/; Max-Age=604800; SameSite=Lax`;
-    document.cookie = `${CUSTOMER_ID_COOKIE_NAME}=${encodeURIComponent(session.user.id)}; Path=/; Max-Age=604800; SameSite=Lax`;
+    // `nw-user-id` is set as httpOnly + signed by POST /api/auth/sync-session (verified JWT).
   } else {
     document.cookie = `${AUTH_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
     document.cookie = `${CUSTOMER_ID_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;

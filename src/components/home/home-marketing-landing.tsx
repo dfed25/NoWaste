@@ -47,7 +47,7 @@ export function HomeMarketingLanding() {
           <Link href="/auth/login?next=/" className={MARKETING_LINK_BUTTON_PRIMARY}>
             Sign in to continue
           </Link>
-          <Link href="/auth/sign-up" className={MARKETING_LINK_BUTTON_SECONDARY}>
+          <Link href="/get-started" className={MARKETING_LINK_BUTTON_SECONDARY}>
             Create an account
           </Link>
           <Link
