@@ -28,6 +28,7 @@ export function CustomerOnboardingForm() {
   const { pushToast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [profileFetchFailed, setProfileFetchFailed] = useState(false);
   const [existingProfile, setExistingProfile] = useState<AccountSettingsInput | null>(null);
 
   const {
@@ -52,7 +53,14 @@ export function CustomerOnboardingForm() {
       try {
         const res = await fetch("/api/account/me", { credentials: "include", cache: "no-store" });
         const data = (await res.json()) as { profile?: AccountSettingsInput };
-        if (!mounted || !res.ok || !data.profile) return;
+        if (!mounted) return;
+        if (!res.ok) {
+          setProfileFetchFailed(true);
+          return;
+        }
+        setProfileFetchFailed(false);
+        if (!data.profile) return;
+
         setExistingProfile(data.profile);
 
         const c = getValues();
@@ -66,6 +74,8 @@ export function CustomerOnboardingForm() {
           phone: c.phone?.trim() || data.profile.phone || "",
           email: c.email?.trim() || data.profile.email || user?.email || "",
         });
+      } catch {
+        if (mounted) setProfileFetchFailed(true);
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -79,6 +89,9 @@ export function CustomerOnboardingForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
+      if (profileFetchFailed) {
+        throw new Error("Could not load your account settings. Please refresh the page and try again.");
+      }
       const prior = existingProfile;
       const body: AccountSettingsInput = {
         displayName: values.displayName,
