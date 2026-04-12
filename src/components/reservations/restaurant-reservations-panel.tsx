@@ -72,7 +72,11 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
     setError(null);
     setIsLoading(true);
     try {
-      const response = await fetch(scopeAtStart, { cache: "no-store", signal: controller.signal });
+      const response = await fetch(scopeAtStart, {
+        cache: "no-store",
+        credentials: "include",
+        signal: controller.signal,
+      });
       if (currentScopeRef.current !== scopeAtStart) return;
 
       const payload = (await response.json().catch(() => ({}))) as {
@@ -134,6 +138,7 @@ export function RestaurantReservationsPanel({ restaurantChoices }: Props) {
     try {
       const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/fulfillment`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });

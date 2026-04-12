@@ -58,7 +58,10 @@ export function RestaurantListingsManager() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/listings", { cache: "no-store" });
+      const response = await fetch("/api/listings", {
+        cache: "no-store",
+        credentials: "include",
+      });
       const payload = (await response.json().catch(() => ({}))) as {
         listings?: ManagedListing[];
         error?: string;
@@ -137,6 +140,7 @@ export function RestaurantListingsManager() {
     try {
       const response = await fetch(`/api/listings/${listingId}`, {
         method: options.method,
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: options.body ? JSON.stringify(options.body) : undefined,
       });
