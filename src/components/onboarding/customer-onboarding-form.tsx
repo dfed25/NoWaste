@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,8 +28,10 @@ export function CustomerOnboardingForm() {
   const { pushToast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [profileFetchFailed, setProfileFetchFailed] = useState(false);
   const [existingProfile, setExistingProfile] = useState<AccountSettingsInput | null>(null);
+  const mountedRef = useRef(true);
 
   const {
     register,
@@ -47,13 +49,22 @@ export function CustomerOnboardingForm() {
   });
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-    async function load() {
+  const loadProfile = useCallback(
+    async (isRetry: boolean) => {
+      if (isRetry) {
+        setIsRefetching(true);
+        setProfileFetchFailed(false);
+      }
       try {
         const res = await fetch("/api/account/me", { credentials: "include", cache: "no-store" });
         const data = (await res.json()) as { profile?: AccountSettingsInput };
-        if (!mounted) return;
+        if (!mountedRef.current) return;
         if (!res.ok) {
           setProfileFetchFailed(true);
           return;
@@ -74,23 +85,23 @@ export function CustomerOnboardingForm() {
           email: c.email?.trim() || data.profile.email || user?.email || "",
         });
       } catch {
-        if (mounted) setProfileFetchFailed(true);
+        if (mountedRef.current) setProfileFetchFailed(true);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (!mountedRef.current) return;
+        if (isRetry) setIsRefetching(false);
+        else setIsLoading(false);
       }
-    }
+    },
+    [getValues, reset, user?.email, user?.user_metadata?.display_name],
+  );
 
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [getValues, reset, user?.email, user?.user_metadata?.display_name]);
+  useEffect(() => {
+    void loadProfile(false);
+  }, [loadProfile]);
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      if (profileFetchFailed) {
-        throw new Error("Could not load your account settings. Please refresh the page and try again.");
-      }
+      if (profileFetchFailed) return;
       const prior = existingProfile;
       const displayName = values.displayName.trim();
       const phone = values.phone.trim();
@@ -142,6 +153,20 @@ export function CustomerOnboardingForm() {
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       <Card className="space-y-3 border-neutral-200/80">
+        {profileFetchFailed ? (
+          <div className="space-y-2 rounded-md border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-800">
+            <p>We couldn&apos;t load your account settings. Retry or refresh the page.</p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isRefetching}
+              onClick={() => void loadProfile(true)}
+            >
+              {isRefetching ? "Retrying…" : "Retry"}
+            </Button>
+          </div>
+        ) : null}
         <Input
           label="Full name"
           autoComplete="name"
@@ -165,7 +190,12 @@ export function CustomerOnboardingForm() {
           error={errors.phone?.message}
           {...register("phone")}
         />
-        <Button type="submit" variant="primary" disabled={isSubmitting} className="w-full sm:w-auto">
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={isSubmitting || profileFetchFailed || isRefetching}
+          className="w-full sm:w-auto"
+        >
           {isSubmitting ? "Saving…" : "Continue to marketplace"}
         </Button>
       </Card>
