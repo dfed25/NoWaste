@@ -59,9 +59,8 @@ export function CustomerOnboardingForm() {
           return;
         }
         setProfileFetchFailed(false);
+        setExistingProfile(data.profile ?? null);
         if (!data.profile) return;
-
-        setExistingProfile(data.profile);
 
         const c = getValues();
         const metaName =
@@ -93,10 +92,12 @@ export function CustomerOnboardingForm() {
         throw new Error("Could not load your account settings. Please refresh the page and try again.");
       }
       const prior = existingProfile;
+      const displayName = values.displayName.trim();
+      const phone = values.phone.trim();
       const body: AccountSettingsInput = {
-        displayName: values.displayName,
+        displayName: displayName,
         email: values.email.trim(),
-        phone: values.phone,
+        phone: phone,
         dietaryPreferences: prior?.dietaryPreferences ?? [],
         defaultMaxDistanceMiles: prior?.defaultMaxDistanceMiles ?? 10,
         marketingOptIn: prior?.marketingOptIn ?? false,
