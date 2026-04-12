@@ -500,7 +500,7 @@ export function MarketplaceFeed({ initialListings }: MarketplaceFeedProps) {
                       <ListingCardPhotos imageUrls={listing.imageUrls} title={listing.title} />
 
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className="min-w-0 text-base font-semibold text-neutral-900">{listing.title}</h3>
+                        <h4 className="min-w-0 text-base font-semibold text-neutral-900">{listing.title}</h4>
                         <p className="shrink-0 text-sm font-semibold text-neutral-800">
                           ${(listing.priceCents / 100).toFixed(2)}
                         </p>

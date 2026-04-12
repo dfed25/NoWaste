@@ -111,10 +111,20 @@ function asIsoDate(value: unknown): string | undefined {
 
 function asImageUrlList(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
-  const urls = value.filter(
-    (item): item is string =>
-      typeof item === "string" && /^https:\/\//i.test(item.trim()),
-  );
+  const urls: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== "https:") continue;
+      if (!parsed.hostname) continue;
+      urls.push(parsed.href);
+    } catch {
+      continue;
+    }
+  }
   return urls.length > 0 ? urls : undefined;
 }
 
