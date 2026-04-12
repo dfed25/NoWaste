@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/states/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { AccountSettingsInput } from "@/lib/validation";
+import { StripeEmbeddedCheckout } from "@/components/checkout/stripe-embedded-checkout";
 
 type Props = {
   listingId: string;
@@ -33,6 +34,7 @@ export function ReservationCheckoutForm({
   const { pushToast } = useToast();
   const { user } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [embeddedClientSecret, setEmbeddedClientSecret] = useState<string | null>(null);
   /** Tracks which Supabase user (or guest) we last prefilled for so account switches re-run prefill. */
   const prefilledForUserKey = useRef<string | null>(null);
 
@@ -137,9 +139,15 @@ export function ReservationCheckoutForm({
       }
 
       const payload = (await response.json()) as {
+        clientSecret?: string;
         checkoutUrl?: string;
         confirmationUrl?: string;
       };
+
+      if (payload.clientSecret) {
+        setEmbeddedClientSecret(payload.clientSecret);
+        return;
+      }
 
       if (payload.checkoutUrl) {
         window.location.assign(payload.checkoutUrl);
@@ -162,19 +170,40 @@ export function ReservationCheckoutForm({
     }
   });
 
+  if (embeddedClientSecret) {
+    return (
+      <div className="space-y-4">
+        <Card className="space-y-2 border-neutral-200/80">
+          <h2 className="text-title-md">Payment</h2>
+          <p className="text-body-sm text-neutral-600">
+            Complete your card details below. You stay on NoWaste—no redirect to an external checkout
+            page when embedded payments are enabled.
+          </p>
+        </Card>
+        <Card className="border-neutral-200/80 p-4 sm:p-5">
+          <StripeEmbeddedCheckout
+            key={embeddedClientSecret}
+            clientSecret={embeddedClientSecret}
+            onBack={() => setEmbeddedClientSecret(null)}
+          />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       {submitError ? <ErrorState message={submitError} /> : null}
       <Card className="space-y-3">
         <h2 className="text-title-md">Reservation</h2>
         <Input label="Name" error={errors.name?.message} {...register("name")} />
+        <Input label="Phone" type="tel" error={errors.phone?.message} {...register("phone")} />
         <Input
           label="Email"
           type="email"
           error={errors.email?.message}
           {...register("email")}
         />
-        <Input label="Phone" error={errors.phone?.message} {...register("phone")} />
         <Input
           label="Quantity"
           type="number"
@@ -187,7 +216,7 @@ export function ReservationCheckoutForm({
         </p>
       </Card>
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Starting checkout..." : "Proceed to checkout"}
+        {isSubmitting ? "Starting checkout..." : "Continue to payment"}
       </Button>
     </form>
   );

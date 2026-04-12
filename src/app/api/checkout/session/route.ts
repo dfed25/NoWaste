@@ -123,11 +123,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ confirmationUrl });
   }
 
+  const returnUrl = `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
+    listing.id,
+  )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}&session_id={CHECKOUT_SESSION_ID}`;
+  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const useEmbeddedCheckout = Boolean(publishableKey?.trim());
+
   const stripe = new Stripe(stripeSecretKey);
   let session: Stripe.Checkout.Session;
   try {
-    session = await stripe.checkout.sessions.create({
-      mode: "payment",
+    const sessionBase = {
+      mode: "payment" as const,
       customer_email: body.customer.email,
       metadata: {
         listingId: listing.id,
@@ -148,11 +154,21 @@ export async function POST(request: Request) {
           },
         },
       ],
-      success_url: `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
-        listing.id,
-      )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
-    });
+    };
+
+    if (useEmbeddedCheckout) {
+      session = await stripe.checkout.sessions.create({
+        ...sessionBase,
+        ui_mode: "embedded_page",
+        return_url: returnUrl,
+      });
+    } else {
+      session = await stripe.checkout.sessions.create({
+        ...sessionBase,
+        success_url: returnUrl,
+        cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
+      });
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown Stripe API failure";
@@ -166,6 +182,22 @@ export async function POST(request: Request) {
       { error: "Unable to initialize payment session" },
       { status: 502 },
     );
+  }
+
+  if (useEmbeddedCheckout) {
+    const clientSecret = session.client_secret;
+    if (!clientSecret) {
+      try {
+        await deleteOrder(orderId, customerId);
+      } catch (rollbackError) {
+        console.error("Failed to rollback pending order after missing client secret", rollbackError);
+      }
+      return NextResponse.json(
+        { error: "Unable to initialize embedded checkout" },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json({ clientSecret });
   }
 
   return NextResponse.json({ checkoutUrl: session.url });

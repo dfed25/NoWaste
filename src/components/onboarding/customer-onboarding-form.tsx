@@ -174,6 +174,16 @@ export function CustomerOnboardingForm() {
           {...register("displayName")}
         />
         <Input
+          label="Mobile phone"
+          type="tel"
+          autoComplete="tel"
+          error={errors.phone?.message}
+          {...register("phone")}
+        />
+        <p className="text-xs text-neutral-500">
+          Required for pickup coordination and SMS updates when you reserve meals.
+        </p>
+        <Input
           label="Email"
           type="email"
           autoComplete="email"
@@ -183,13 +193,6 @@ export function CustomerOnboardingForm() {
         <p className="text-xs text-neutral-500">
           Used for order confirmations; you can edit this anytime in account settings.
         </p>
-        <Input
-          label="Phone"
-          type="tel"
-          autoComplete="tel"
-          error={errors.phone?.message}
-          {...register("phone")}
-        />
         <Button
           type="submit"
           variant="primary"
