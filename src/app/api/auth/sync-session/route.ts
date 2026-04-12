@@ -24,6 +24,7 @@ function clearStaleSignedSessionCookies(response: NextResponse) {
   };
   const httpOnly = { ...clearShared, httpOnly: true as const };
   const roleVisible = { ...clearShared, httpOnly: false as const };
+  response.cookies.set(CUSTOMER_ID_COOKIE_NAME, "", httpOnly);
   response.cookies.set(RESTAURANT_ID_COOKIE_NAME, "", httpOnly);
   response.cookies.set(NW_SESSION_SIGNATURE_COOKIE_NAME, "", httpOnly);
   response.cookies.set(ADMIN_ROLE_COOKIE, "", roleVisible);
@@ -60,7 +61,9 @@ export async function POST(request: Request) {
   const supabase = createClient(url, anon);
   const { data, error } = await supabase.auth.getUser(parsed.data.access_token);
   if (error || !data.user) {
-    return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+    const res = NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+    clearStaleSignedSessionCookies(res);
+    return res;
   }
 
   const user = data.user;
@@ -114,6 +117,8 @@ export async function POST(request: Request) {
   const signedUserId = encodeSignedCustomerId(user.id);
   if (signedUserId) {
     res.cookies.set(CUSTOMER_ID_COOKIE_NAME, signedUserId, httpOnly);
+  } else {
+    res.cookies.set(CUSTOMER_ID_COOKIE_NAME, "", { ...httpOnly, maxAge: 0 });
   }
 
   return res;

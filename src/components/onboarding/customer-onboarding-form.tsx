@@ -33,6 +33,7 @@ export function CustomerOnboardingForm() {
   const {
     register,
     reset,
+    getValues,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<OnboardingValues>({
@@ -53,10 +54,17 @@ export function CustomerOnboardingForm() {
         const data = (await res.json()) as { profile?: AccountSettingsInput };
         if (!mounted || !res.ok || !data.profile) return;
         setExistingProfile(data.profile);
+
+        const c = getValues();
+        const metaName =
+          typeof user?.user_metadata?.display_name === "string"
+            ? user.user_metadata.display_name
+            : "";
         reset({
-          displayName: data.profile.displayName || user?.user_metadata?.display_name || "",
-          phone: data.profile.phone || "",
-          email: data.profile.email || user?.email || "",
+          displayName:
+            c.displayName?.trim() || data.profile.displayName || metaName || "",
+          phone: c.phone?.trim() || data.profile.phone || "",
+          email: c.email?.trim() || data.profile.email || user?.email || "",
         });
       } finally {
         if (mounted) setIsLoading(false);
@@ -67,7 +75,7 @@ export function CustomerOnboardingForm() {
     return () => {
       mounted = false;
     };
-  }, [reset, user?.email, user?.user_metadata?.display_name]);
+  }, [getValues, reset, user?.email, user?.user_metadata?.display_name]);
 
   const onSubmit = handleSubmit(async (values) => {
     try {

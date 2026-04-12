@@ -33,7 +33,8 @@ export function ReservationCheckoutForm({
   const { pushToast } = useToast();
   const { user } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const prefillApplied = useRef(false);
+  /** Tracks which Supabase user (or guest) we last prefilled for so account switches re-run prefill. */
+  const prefilledForUserKey = useRef<string | null>(null);
 
   const {
     register,
@@ -65,7 +66,9 @@ export function ReservationCheckoutForm({
           profile?: AccountSettingsInput;
         };
         if (!mounted || !response.ok || !payload.profile) return;
-        if (prefillApplied.current) return;
+
+        const userKey = user?.id ?? "guest";
+        if (prefilledForUserKey.current === userKey) return;
 
         const p = payload.profile;
         const v = getValues();
@@ -92,7 +95,7 @@ export function ReservationCheckoutForm({
           },
           { keepDefaultValues: true },
         );
-        prefillApplied.current = true;
+        prefilledForUserKey.current = userKey;
       } catch {
         /* keep empty defaults */
       }
@@ -102,7 +105,7 @@ export function ReservationCheckoutForm({
     return () => {
       mounted = false;
     };
-  }, [getValues, reset, user?.email, user?.user_metadata?.display_name]);
+  }, [getValues, reset, user?.email, user?.id, user?.user_metadata?.display_name]);
 
   const quantity = Math.max(1, Number(watch("quantity")) || 1);
   const totalCents = unitPriceCents * quantity;
