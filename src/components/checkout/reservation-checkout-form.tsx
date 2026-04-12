@@ -182,6 +182,7 @@ export function ReservationCheckoutForm({
         </Card>
         <Card className="border-neutral-200/80 p-4 sm:p-5">
           <StripeEmbeddedCheckout
+            key={embeddedClientSecret}
             clientSecret={embeddedClientSecret}
             onBack={() => setEmbeddedClientSecret(null)}
           />

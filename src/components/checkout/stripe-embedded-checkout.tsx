@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,8 @@ type Props = {
 export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const checkoutRef = useRef<EmbeddedInstance | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
   useEffect(() => {
@@ -33,8 +35,13 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
 
       checkoutRef.current = checkout;
       checkout.mount(mountRef.current);
-    })().catch(() => {
-      /* loadStripe / mount errors surface via empty iframe; user can go back */
+    })().catch((err: unknown) => {
+      if (cancelled) return;
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to load payment form. Please try again.";
+      setInitError(message);
     });
 
     return () => {
@@ -42,13 +49,37 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
       checkoutRef.current?.destroy();
       checkoutRef.current = null;
     };
-  }, [clientSecret, publishableKey]);
+  }, [clientSecret, publishableKey, retryNonce]);
 
   if (!publishableKey?.trim()) {
     return (
       <p className="text-sm text-red-700">
         Payment UI is not configured. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to the environment.
       </p>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/80 px-3 py-3">
+        <p className="text-sm text-red-800">{initError}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setInitError(null);
+              setRetryNonce((n) => n + 1);
+            }}
+          >
+            Try again
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+            Back to reservation details
+          </Button>
+        </div>
+      </div>
     );
   }
 
