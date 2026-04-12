@@ -14,7 +14,7 @@ type HomeAuthenticatedProps = {
 export function HomeAuthenticated({ listings }: HomeAuthenticatedProps) {
   return (
     <CustomerProfileGate>
-    <section className="space-y-6 pb-8">
+    <section className="w-full min-w-0 space-y-6 pb-8">
       <Card
         variant="elevated"
         className="space-y-5 border-neutral-200/80 bg-gradient-to-br from-white via-white to-brand-100/25"
@@ -70,7 +70,7 @@ export function HomeAuthenticated({ listings }: HomeAuthenticatedProps) {
           <MarketplaceFeed initialListings={listings} />
         </Card>
 
-        <Card className="space-y-3 border-neutral-200/80">
+        <Card className="min-w-0 space-y-3 border-neutral-200/80">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-title-md">Saved for later</h2>
             <Link href="/saved" className="text-sm font-medium text-brand-700 hover:underline">

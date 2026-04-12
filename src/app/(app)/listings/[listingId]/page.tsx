@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LocalTime } from "@/components/common/local-time";
+import { ListingCardPhotos } from "@/components/marketplace/listing-card-photos";
 import { getListingByIdFromStore } from "@/lib/marketplace-store";
 
 type ListingDetailPageProps = {
@@ -15,11 +16,13 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
   if (!listing) notFound();
 
   return (
-    <section className="space-y-5">
+    <section className="w-full min-w-0 space-y-5">
       <Card
         variant="elevated"
-        className="space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/25"
+        className="min-w-0 space-y-4 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/25"
       >
+        <ListingCardPhotos imageUrls={listing.imageUrls} title={listing.title} />
+
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="brand">{listing.quantityRemaining} left</Badge>

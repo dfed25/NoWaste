@@ -11,18 +11,18 @@ export function PrimaryNavLinks() {
   if (!roleResolved || authLoading) {
     return (
       <nav
-        className="hidden min-h-5 min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-400 md:flex"
+        className="hidden min-h-5 min-w-0 flex-1 items-center justify-center gap-3 text-sm text-neutral-400 md:flex md:gap-5"
         aria-busy="true"
         aria-label="Loading navigation"
       >
-        <span className="select-none">…</span>
+        <span className="min-w-0 select-none truncate">…</span>
       </nav>
     );
   }
 
   if (!user) {
     return (
-      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-600 md:flex">
+      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-3 text-sm text-neutral-600 md:flex md:gap-5">
         <Link href="/get-started" className="hover:text-neutral-900">
           How it works
         </Link>
@@ -31,7 +31,7 @@ export function PrimaryNavLinks() {
   }
 
   return (
-    <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm text-neutral-600 md:flex">
+    <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 text-sm text-neutral-600 md:flex md:gap-4 lg:gap-5">
       {isStaff ? (
         <Link href="/dashboard" className="hover:text-neutral-900">
           Dashboard

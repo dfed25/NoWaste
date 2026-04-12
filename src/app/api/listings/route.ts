@@ -24,6 +24,7 @@ function toPublicListingItem(m: ListingItem | ManagedListing): ListingItem {
     priceCents: m.priceCents,
     quantityRemaining: m.quantityRemaining,
     allergyNotes: m.allergyNotes,
+    imageUrls: m.imageUrls,
   };
 }
 
