@@ -47,7 +47,7 @@ Open the URL shown (usually `http://localhost:3000`).
 
 ## Before Stripe / production
 
-1. Replace **all placeholders** on `contact.html` (legal name, address, email, phone).  
+1. Replace **`support@nowaste.com`** and **`partners@nowaste.com`** on `contact.html` with the addresses on your domain (and add a full street address if required for verification).  
 2. Point your **public domain** (e.g. `www.yourcompany.com`) to this site.  
 3. Have counsel **review** `privacy.html`.  
 4. Submit your **live business website URL** in the Stripe Dashboard as required.
