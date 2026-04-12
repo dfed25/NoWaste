@@ -32,7 +32,7 @@
     "mobile:debug": "node scripts/mobile-debug.mjs"
   },
   "dependencies": {
-    "@capacitor/core": "^7.6.1",
+    "@capacitor/core": "^8.3.0",
     "@hookform/resolvers": "^5.2.2",
     "@stripe/stripe-js": "^9.1.0",
     "@supabase/supabase-js": "^2.101.1",
