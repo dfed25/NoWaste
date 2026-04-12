@@ -31,6 +31,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: "#16a34a",
+  /** Reduces layout jump when the software keyboard opens (Chrome Android and supporting browsers). */
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

@@ -21,7 +21,7 @@ export function Textarea({
       <textarea
         id={inputId}
         className={cn(
-          "min-h-24 rounded-xl border bg-white px-3 py-2.5 text-sm text-neutral-900",
+          "min-h-24 rounded-xl border bg-white px-3 py-2.5 text-base text-neutral-900",
           "outline-none ring-0 transition-colors placeholder:text-neutral-400",
           "focus-visible:border-brand-500",
           error ? "border-red-500" : "border-neutral-300",
