@@ -72,7 +72,7 @@ export function RestaurantOnboardingForm({ adminRestaurantId }: Props) {
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-5"
       onSubmit={handleSubmit(async (values) => {
         const response = await fetch(apiUrl, {
           method: "PUT",
@@ -96,7 +96,7 @@ export function RestaurantOnboardingForm({ adminRestaurantId }: Props) {
         });
       })}
     >
-      <Card className="space-y-3">
+      <Card className="space-y-3 border-brand-100 bg-gradient-to-br from-brand-50/50 to-white">
         <h2 className="text-title-md">Restaurant profile</h2>
         <Input
           label="Restaurant name"
@@ -105,7 +105,7 @@ export function RestaurantOnboardingForm({ adminRestaurantId }: Props) {
         />
       </Card>
 
-      <Card className="space-y-3">
+      <Card className="space-y-3 border-neutral-200/90 shadow-sm">
         <h2 className="text-title-md">Address and geo fields</h2>
         <Input
           label="Address line 1"

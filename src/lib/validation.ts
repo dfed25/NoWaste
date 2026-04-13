@@ -6,6 +6,28 @@ export const signUpSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+/** Restaurant sign-up: business details + attestation; optional enrollment code when env is set. */
+export const restaurantStaffSignUpSchema = signUpSchema.extend({
+  businessLegalName: z.string().min(2, "Legal business name is required"),
+  businessPhone: z.string().min(10, "Enter a valid business phone number"),
+  foodServiceAttestation: z.boolean().refine((v) => v === true, {
+    message: "Confirm that you represent a food service business",
+  }),
+  enrollmentCode: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const required =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_RESTAURANT_SIGNUP_CODE?.trim()
+      : "";
+  if (required && (data.enrollmentCode?.trim() ?? "") !== required) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "That enrollment code is not valid",
+      path: ["enrollmentCode"],
+    });
+  }
+});
+
 export const loginSchema = z.object({
   email: z.email("Valid email is required"),
   password: z.string().min(1, "Password is required"),
@@ -147,6 +169,7 @@ export const notificationPreferenceSchema = z.object({
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;
+export type RestaurantStaffSignUpInput = z.infer<typeof restaurantStaffSignUpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>;
 export type GuestCheckoutInput = z.infer<typeof guestCheckoutSchema>;

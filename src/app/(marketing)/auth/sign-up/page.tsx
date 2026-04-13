@@ -28,11 +28,16 @@ export default async function SignUpPage({ searchParams }: Props) {
   }
 
   return (
-    <section className="space-y-2">
+    <section className="space-y-3">
       <h1 className="text-title-md">Create account</h1>
-      <p className="text-body-sm text-neutral-600">
-        Set up your {role === "restaurant_staff" ? "restaurant" : "customer"} account to continue.
-      </p>
+      {role === "restaurant_staff" ? (
+        <p className="text-body-sm text-neutral-600">
+          Restaurant accounts require business details and confirmation that you represent a food
+          service venue. You&apos;ll sign in next to finish location onboarding.
+        </p>
+      ) : (
+        <p className="text-body-sm text-neutral-600">Set up your customer account to continue.</p>
+      )}
       <SignUpForm role={role} />
     </section>
   );
