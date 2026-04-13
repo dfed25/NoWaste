@@ -1,4 +1,9 @@
 import { LoginForm } from "@/components/auth/login-form";
+import {
+  isReturnToRestaurantOnboarding,
+  pickFirstSearchParam,
+  sanitizeAuthNextParam,
+} from "@/lib/auth/safe-next-path";
 
 type PageProps = {
   searchParams: Promise<{ next?: string | string[]; role?: string | string[] }>;
@@ -6,9 +11,8 @@ type PageProps = {
 
 export default async function LoginPage({ searchParams }: PageProps) {
   const sp = await searchParams;
-  const nextRaw = Array.isArray(sp.next) ? sp.next[0] : sp.next;
-  const returnToOnboarding =
-    typeof nextRaw === "string" && nextRaw.startsWith("/onboarding/restaurant");
+  const sanitizedNext = sanitizeAuthNextParam(pickFirstSearchParam(sp.next));
+  const returnToOnboarding = isReturnToRestaurantOnboarding(sanitizedNext);
 
   return (
     <section className="min-w-0 space-y-2">

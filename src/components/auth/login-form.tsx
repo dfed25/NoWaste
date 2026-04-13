@@ -12,10 +12,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
 import { syncNwSessionFromAccessToken } from "@/lib/auth/sync-nw-session-client";
 import { normalizeRole, routeForRole } from "@/lib/admin";
-
-function isSafeNextPath(value: string) {
-  return value.startsWith("/") && !value.startsWith("//") && !value.includes("://") && !value.startsWith("/\\");
-}
+import { sanitizeAuthNextParam } from "@/lib/auth/safe-next-path";
 
 type LoginFormProps = {
   /** Shown when `next` points at restaurant onboarding (e.g. after “sign in first”). */
@@ -80,7 +77,7 @@ export function LoginForm({ returnToRestaurantOnboarding = false }: LoginFormPro
       });
 
       const rawNext = query.get("next");
-      const next = rawNext && isSafeNextPath(rawNext) ? rawNext : routeForRole(role);
+      const next = sanitizeAuthNextParam(rawNext) ?? routeForRole(role);
       router.push(next);
       router.refresh();
     } catch (error) {

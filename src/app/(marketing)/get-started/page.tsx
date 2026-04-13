@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { RESTAURANT_ONBOARDING_LOGIN_HREF } from "@/lib/auth/safe-next-path";
 import {
   MARKETING_LINK_BUTTON_PRIMARY,
   MARKETING_LINK_BUTTON_SECONDARY,
@@ -19,7 +20,7 @@ const ROLE_OPTIONS = [
     title: "I represent a restaurant",
     description: "List surplus inventory, manage reservations, and run pickup operations.",
     signUpHref: "/auth/sign-up?role=restaurant",
-    loginHref: "/auth/login?role=restaurant&next=%2Fonboarding%2Frestaurant",
+    loginHref: RESTAURANT_ONBOARDING_LOGIN_HREF,
     createLabel: "Create restaurant account",
   },
 ] as const;

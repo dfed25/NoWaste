@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/feedback/toast-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { RESTAURANT_ONBOARDING_LOGIN_HREF } from "@/lib/auth/safe-next-path";
 import {
   restaurantStaffSignUpSchema,
   signUpSchema,
@@ -25,8 +26,6 @@ type Props = {
 function roleLabel(role: AppRole) {
   return role === "restaurant_staff" ? "Restaurant" : "Customer";
 }
-
-const onboardingNext = encodeURIComponent("/onboarding/restaurant");
 
 function CustomerSignUpForm({ role }: { role: Exclude<AppRole, "restaurant_staff"> }) {
   const router = useRouter();
@@ -127,8 +126,6 @@ function RestaurantStaffSignUpForm() {
   const router = useRouter();
   const { pushToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const role: AppRole = "restaurant_staff";
-  const loginQueryRestaurant = `role=${encodeURIComponent(role)}&next=${onboardingNext}`;
 
   const {
     register,
@@ -150,26 +147,19 @@ function RestaurantStaffSignUpForm() {
   const onSubmit = handleSubmit(async (values) => {
     setIsSubmitting(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            display_name: values.name,
-            app_role: role,
-            business_legal_name: values.businessLegalName.trim(),
-            business_phone: values.businessPhone.trim(),
-            food_service_attested: true,
-          },
-        },
+      const response = await fetch("/api/auth/sign-up/restaurant", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
       });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
-      if (error) {
+      if (!response.ok) {
         pushToast({
           tone: "error",
           title: "Sign up failed",
-          description: error.message,
+          description: payload.error ?? "Could not create restaurant account.",
         });
         return;
       }
@@ -179,7 +169,7 @@ function RestaurantStaffSignUpForm() {
         title: "Account created",
         description: "Check your inbox if email confirmation is enabled.",
       });
-      router.push(`/auth/login?${loginQueryRestaurant}`);
+      router.push(RESTAURANT_ONBOARDING_LOGIN_HREF);
     } catch (error) {
       pushToast({
         tone: "error",
@@ -191,11 +181,11 @@ function RestaurantStaffSignUpForm() {
     }
   });
 
-  const showEnrollmentCode = Boolean(process.env.NEXT_PUBLIC_RESTAURANT_SIGNUP_CODE?.trim());
-
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
-      <p className="text-xs font-medium text-brand-700">Signing up as: {roleLabel(role)}</p>
+      <p className="text-xs font-medium text-brand-700">
+        Signing up as: {roleLabel("restaurant_staff")}
+      </p>
 
       <Input
         label="Full name"
@@ -237,14 +227,12 @@ function RestaurantStaffSignUpForm() {
           error={errors.businessPhone?.message}
           {...register("businessPhone")}
         />
-        {showEnrollmentCode ? (
-          <Input
-            label="Partner enrollment code"
-            autoComplete="off"
-            error={errors.enrollmentCode?.message}
-            {...register("enrollmentCode")}
-          />
-        ) : null}
+        <Input
+          label="Partner enrollment code (if your organization provided one)"
+          autoComplete="off"
+          error={errors.enrollmentCode?.message}
+          {...register("enrollmentCode")}
+        />
         <label className="flex items-start gap-2 text-sm text-neutral-800">
           <input
             type="checkbox"
@@ -266,7 +254,7 @@ function RestaurantStaffSignUpForm() {
       </Button>
       <p className="text-xs text-neutral-600">
         Already have an account?{" "}
-        <Link href={`/auth/login?${loginQueryRestaurant}`} className="underline">
+        <Link href={RESTAURANT_ONBOARDING_LOGIN_HREF} className="underline">
           Log in
         </Link>
       </p>

@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { RestaurantOnboardingShell } from "@/components/onboarding/restaurant-onboarding-shell";
+import { RESTAURANT_ONBOARDING_LOGIN_HREF } from "@/lib/auth/safe-next-path";
 import { verifyServerSession } from "@/lib/server-session";
 
 type PageProps = {
@@ -13,8 +14,7 @@ export default async function RestaurantOnboardingPage({ searchParams }: PagePro
   const session = verifyServerSession(new Request("http://localhost", { headers: { cookie } }));
 
   if (!session.isAuthenticated) {
-    const next = encodeURIComponent("/onboarding/restaurant");
-    redirect(`/auth/login?next=${next}&role=restaurant`);
+    redirect(RESTAURANT_ONBOARDING_LOGIN_HREF);
   }
 
   const role = session.user?.role;
