@@ -2,6 +2,9 @@ export const ADMIN_ROLE_COOKIE = "nw-role";
 
 export type AppRole = "customer" | "restaurant_staff" | "admin";
 
+/** Roles allowed for self-service sign-up (URL `?role=`). */
+export type PublicSignUpRole = Extract<AppRole, "customer" | "restaurant_staff">;
+
 export function hasAdminAccess(isAuthenticated: boolean, role?: string) {
   return isAuthenticated && role === "admin";
 }

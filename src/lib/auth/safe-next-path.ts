@@ -40,6 +40,6 @@ export function pickFirstSearchParam(
 /** Whether the sanitized `next` value will send the user to restaurant onboarding. */
 export function isReturnToRestaurantOnboarding(sanitizedNext: string | null): boolean {
   if (!sanitizedNext) return false;
-  const pathOnly = sanitizedNext.split("?")[0] ?? "";
+  const pathOnly = sanitizedNext.split(/[?#]/)[0] ?? "";
   return pathOnly === RESTAURANT_ONBOARDING_PATH;
 }

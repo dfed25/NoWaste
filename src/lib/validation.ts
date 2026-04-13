@@ -1,19 +1,20 @@
 import { z } from "zod";
 
 export const signUpSchema = z.object({
-  name: z.string().min(2, "Name is required"),
+  name: z.string().trim().min(2, "Name is required"),
   email: z.email("Valid email is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 /** Restaurant sign-up: business details + attestation; enrollment code validated on the server when configured. */
 export const restaurantStaffSignUpSchema = signUpSchema.extend({
-  businessLegalName: z.string().min(2, "Legal business name is required"),
-  businessPhone: z.string().min(10, "Enter a valid business phone number"),
+  name: z.string().trim().min(2, "Name is required"),
+  businessLegalName: z.string().trim().min(2, "Legal business name is required"),
+  businessPhone: z.string().trim().min(10, "Enter a valid business phone number"),
   foodServiceAttestation: z.boolean().refine((v) => v === true, {
     message: "Confirm that you represent a food service business",
   }),
-  enrollmentCode: z.string().optional(),
+  enrollmentCode: z.string().trim().optional(),
 });
 
 export const loginSchema = z.object({

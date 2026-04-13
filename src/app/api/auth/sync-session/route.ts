@@ -79,17 +79,8 @@ export async function POST(request: Request) {
       (typeof meta?.restaurant_id === "string" && meta.restaurant_id.trim()) ||
       process.env.DEFAULT_STAFF_RESTAURANT_ID?.trim() ||
       "";
-    if (!restaurantId) {
-      const res = NextResponse.json({
-        ok: true,
-        signed: false,
-        reason: "restaurant_scope_required" as const,
-        message:
-          "Restaurant accounts need a location id in profile metadata (restaurant_id) or DEFAULT_STAFF_RESTAURANT_ID in env for local dev.",
-      });
-      clearStaleSignedSessionCookies(res);
-      return res;
-    }
+    // Unscoped staff still get a signed session (empty restaurant segment) so onboarding and
+    // get-started flows can render until a location is attached in metadata.
   }
 
   const canonical = buildNwSessionCanonical(role, restaurantId);

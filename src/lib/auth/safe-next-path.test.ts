@@ -24,6 +24,7 @@ describe("isReturnToRestaurantOnboarding", () => {
   it("matches sanitized onboarding path", () => {
     expect(isReturnToRestaurantOnboarding(RESTAURANT_ONBOARDING_PATH)).toBe(true);
     expect(isReturnToRestaurantOnboarding(`${RESTAURANT_ONBOARDING_PATH}?x=1`)).toBe(true);
+    expect(isReturnToRestaurantOnboarding(`${RESTAURANT_ONBOARDING_PATH}#section`)).toBe(true);
     expect(isReturnToRestaurantOnboarding("/")).toBe(false);
     expect(isReturnToRestaurantOnboarding(null)).toBe(false);
   });

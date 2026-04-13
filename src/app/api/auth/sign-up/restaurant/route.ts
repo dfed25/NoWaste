@@ -44,7 +44,6 @@ export async function POST(request: Request) {
   const { error } = await admin.auth.admin.createUser({
     email: data.email,
     password: data.password,
-    email_confirm: true,
     user_metadata: {
       display_name: data.name.trim(),
       app_role: "restaurant_staff",

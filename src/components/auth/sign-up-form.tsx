@@ -17,17 +17,17 @@ import {
   type RestaurantStaffSignUpInput,
   type SignUpInput,
 } from "@/lib/validation";
-import type { AppRole } from "@/lib/admin";
+import type { PublicSignUpRole } from "@/lib/admin";
 
 type Props = {
-  role: AppRole;
+  role: PublicSignUpRole;
 };
 
-function roleLabel(role: AppRole) {
+function roleLabel(role: PublicSignUpRole) {
   return role === "restaurant_staff" ? "Restaurant" : "Customer";
 }
 
-function CustomerSignUpForm({ role }: { role: Exclude<AppRole, "restaurant_staff"> }) {
+function CustomerSignUpForm() {
   const router = useRouter();
   const { pushToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +55,7 @@ function CustomerSignUpForm({ role }: { role: Exclude<AppRole, "restaurant_staff
         options: {
           data: {
             display_name: values.name,
-            app_role: role,
+            app_role: "customer",
           },
         },
       });
@@ -74,7 +74,7 @@ function CustomerSignUpForm({ role }: { role: Exclude<AppRole, "restaurant_staff
         title: "Account created",
         description: "Check your inbox if email confirmation is enabled.",
       });
-      router.push(`/auth/login?role=${encodeURIComponent(role)}`);
+      router.push(`/auth/login?role=${encodeURIComponent("customer")}`);
     } catch (error) {
       pushToast({
         tone: "error",
@@ -88,7 +88,7 @@ function CustomerSignUpForm({ role }: { role: Exclude<AppRole, "restaurant_staff
 
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
-      <p className="text-xs font-medium text-brand-700">Signing up as: {roleLabel(role)}</p>
+      <p className="text-xs font-medium text-brand-700">Signing up as: {roleLabel("customer")}</p>
       <Input
         label="Full name"
         autoComplete="name"
@@ -114,7 +114,7 @@ function CustomerSignUpForm({ role }: { role: Exclude<AppRole, "restaurant_staff
       </Button>
       <p className="text-xs text-neutral-600">
         Already have an account?{" "}
-        <Link href={`/auth/login?role=${encodeURIComponent(role)}`} className="underline">
+        <Link href={`/auth/login?role=${encodeURIComponent("customer")}`} className="underline">
           Log in
         </Link>
       </p>
@@ -167,7 +167,8 @@ function RestaurantStaffSignUpForm() {
       pushToast({
         tone: "success",
         title: "Account created",
-        description: "Check your inbox if email confirmation is enabled.",
+        description:
+          "Confirm your email if your workspace requires it, then sign in to continue onboarding.",
       });
       router.push(RESTAURANT_ONBOARDING_LOGIN_HREF);
     } catch (error) {
@@ -266,5 +267,5 @@ export function SignUpForm({ role }: Props) {
   if (role === "restaurant_staff") {
     return <RestaurantStaffSignUpForm />;
   }
-  return <CustomerSignUpForm role={role} />;
+  return <CustomerSignUpForm />;
 }
