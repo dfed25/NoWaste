@@ -40,6 +40,23 @@ describe("server-session", () => {
     expect(v.user?.scopedRestaurantId).toBe(restaurantId);
   });
 
+  it("accepts staff session when restaurant id is empty (unscoped onboarding)", () => {
+    const role = "restaurant_staff";
+    const restaurantId = "";
+    const canonical = buildNwSessionCanonical(role, restaurantId);
+    const sig = signNwSessionCanonical(canonical, process.env.AUTH_SESSION_SECRET!);
+    const req = requestWithCookies([
+      `${AUTH_COOKIE_NAME}=1`,
+      `${ADMIN_ROLE_COOKIE}=${role}`,
+      `${RESTAURANT_ID_COOKIE_NAME}=`,
+      `${NW_SESSION_SIGNATURE_COOKIE_NAME}=${sig}`,
+    ]);
+    const v = verifyServerSession(req);
+    expect(v.isAuthenticated).toBe(true);
+    expect(v.user?.role).toBe(role);
+    expect(v.user?.scopedRestaurantId).toBe("");
+  });
+
   it("rejects staff when restaurant cookie does not match signature", () => {
     const role = "restaurant_staff";
     const canonical = buildNwSessionCanonical(role, "r1");

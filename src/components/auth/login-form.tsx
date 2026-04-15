@@ -12,12 +12,14 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validation";
 import { syncNwSessionFromAccessToken } from "@/lib/auth/sync-nw-session-client";
 import { normalizeRole, routeForRole } from "@/lib/admin";
+import { sanitizeAuthNextParam } from "@/lib/auth/safe-next-path";
 
-function isSafeNextPath(value: string) {
-  return value.startsWith("/") && !value.startsWith("//") && !value.includes("://") && !value.startsWith("/\\");
-}
+type LoginFormProps = {
+  /** Shown when `next` points at restaurant onboarding (e.g. after “sign in first”). */
+  returnToRestaurantOnboarding?: boolean;
+};
 
-export function LoginForm() {
+export function LoginForm({ returnToRestaurantOnboarding = false }: LoginFormProps) {
   const router = useRouter();
   const { pushToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,7 +77,7 @@ export function LoginForm() {
       });
 
       const rawNext = query.get("next");
-      const next = rawNext && isSafeNextPath(rawNext) ? rawNext : routeForRole(role);
+      const next = sanitizeAuthNextParam(rawNext) ?? routeForRole(role);
       router.push(next);
       router.refresh();
     } catch (error) {
@@ -91,6 +93,12 @@ export function LoginForm() {
 
   return (
     <form className="space-y-3" onSubmit={onSubmit}>
+      {returnToRestaurantOnboarding ? (
+        <p className="rounded-lg border border-brand-100 bg-brand-50/80 px-3 py-2 text-xs text-brand-900">
+          Restaurant profile access requires an account. Use the email and password for your restaurant
+          staff login.
+        </p>
+      ) : null}
       <Input
         label="Email"
         type="email"

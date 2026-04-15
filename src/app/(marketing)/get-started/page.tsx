@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { RESTAURANT_ONBOARDING_LOGIN_HREF } from "@/lib/auth/safe-next-path";
 import {
   MARKETING_LINK_BUTTON_PRIMARY,
   MARKETING_LINK_BUTTON_SECONDARY,
@@ -19,12 +20,19 @@ const ROLE_OPTIONS = [
     title: "I represent a restaurant",
     description: "List surplus inventory, manage reservations, and run pickup operations.",
     signUpHref: "/auth/sign-up?role=restaurant",
-    loginHref: "/auth/login?role=restaurant",
+    loginHref: RESTAURANT_ONBOARDING_LOGIN_HREF,
     createLabel: "Create restaurant account",
   },
 ] as const;
 
-export default function GetStartedPage() {
+type PageProps = {
+  searchParams: Promise<{ notice?: string | string[] }>;
+};
+
+export default async function GetStartedPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const notice = Array.isArray(sp.notice) ? sp.notice[0] : sp.notice;
+
   return (
     <section className="mx-auto max-w-lg space-y-8 pb-12 pt-2">
       <div className="space-y-2 text-center">
@@ -35,6 +43,16 @@ export default function GetStartedPage() {
           screen and permissions.
         </p>
       </div>
+
+      {notice === "restaurant-only" ? (
+        <Card className="border-amber-200 bg-amber-50/90 p-4 text-left text-sm text-amber-950">
+          <p className="font-medium">Restaurant tools need a restaurant account.</p>
+          <p className="mt-1 text-amber-900/90">
+            You’re signed in as a customer. Switch to a restaurant profile below, or create a new
+            restaurant account to manage listings and pickups.
+          </p>
+        </Card>
+      ) : null}
 
       <div className="space-y-4">
         {ROLE_OPTIONS.map((option) => (

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { RestaurantDashboardShell } from "@/components/dashboard/restaurant-dashboard-shell";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { RESTAURANT_ONBOARDING_PATH } from "@/lib/auth/safe-next-path";
 import { verifyServerSession } from "@/lib/server-session";
 import { getRestaurantDashboardData } from "@/lib/restaurant-dashboard-metrics";
 
@@ -22,7 +23,7 @@ export default async function DashboardPage() {
   }
   const restaurantId = session.user.scopedRestaurantId;
   if (!restaurantId) {
-    redirect("/onboarding/restaurant");
+    redirect(RESTAURANT_ONBOARDING_PATH);
   }
 
   const data = await getRestaurantDashboardData(restaurantId);
