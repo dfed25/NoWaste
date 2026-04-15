@@ -13,6 +13,9 @@
 # local persisted app data (listings, orders, onboarding drafts, etc.)
 .nowaste-data/
 
+# local Stripe sample extract (comparison only)
+_stripe-sample-ref/
+
 # misc
 .DS_Store
 *.pem

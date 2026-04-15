@@ -9,9 +9,15 @@ type EmbeddedInstance = Awaited<ReturnType<Stripe["createEmbeddedCheckoutPage"]>
 type Props = {
   clientSecret: string;
   onBack: () => void;
+  /** Label for the back button (default: reservation copy). */
+  backLabel?: string;
 };
 
-export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
+export function StripeEmbeddedCheckout({
+  clientSecret,
+  onBack,
+  backLabel = "Back to reservation",
+}: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const checkoutRef = useRef<EmbeddedInstance | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -76,7 +82,7 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
             Try again
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-            Back to reservation details
+            {backLabel}
           </Button>
         </div>
       </div>
@@ -90,7 +96,7 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
         className="min-h-[24rem] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white"
       />
       <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={onBack}>
-        Back to reservation details
+        {backLabel}
       </Button>
     </div>
   );
