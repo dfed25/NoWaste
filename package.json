@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "npx --yes patch-package",
     "dev": "next dev --webpack",
     "dev:turbo": "next dev",
     "dev:mobile": "node scripts/dev-mobile-server.mjs",

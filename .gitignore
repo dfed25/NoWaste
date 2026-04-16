@@ -36,3 +36,10 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor iOS (native build artifacts — keep Xcode project, ignore local caches)
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+ios/**/*.xcuserstate
+ios/**/xcuserdata/

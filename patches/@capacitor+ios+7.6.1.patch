@@ -1,0 +1,17 @@
+diff --git a/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewDelegationHandler.swift b/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewDelegationHandler.swift
+index 98074e1..f72fe78 100644
+--- a/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewDelegationHandler.swift
++++ b/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewDelegationHandler.swift
+@@ -308,8 +308,10 @@ open class WebViewDelegationHandler: NSObject, WKNavigationDelegate, WKUIDelegat
+     }
+ 
+     open func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+-        if let url = navigationAction.request.url {
+-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
++        // Default Capacitor opens every new-window request in Safari. Stripe Checkout (and 3DS) use
++        // window.open / target=_blank — keep them in this WKWebView so the user stays in the app.
++        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
++            webView.load(URLRequest(url: url))
+         }
+         return nil
+     }
