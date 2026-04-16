@@ -9,17 +9,23 @@ type EmbeddedInstance = Awaited<ReturnType<Stripe["createEmbeddedCheckoutPage"]>
 type Props = {
   clientSecret: string;
   onBack: () => void;
+  /**
+   * Prefer passing this from `/api/checkout/session` so in-app checkout works even when the client
+   * bundle was built without `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (e.g. some mobile / CI setups).
+   */
+  publishableKey?: string;
 };
 
-export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
+export function StripeEmbeddedCheckout({ clientSecret, onBack, publishableKey: publishableKeyProp }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const checkoutRef = useRef<EmbeddedInstance | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const publishableKey =
+    publishableKeyProp?.trim() || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() || "";
 
   useEffect(() => {
-    if (!publishableKey?.trim() || !mountRef.current) return;
+    if (!publishableKey || !mountRef.current) return;
 
     let cancelled = false;
 
@@ -51,10 +57,11 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
     };
   }, [clientSecret, publishableKey, retryNonce]);
 
-  if (!publishableKey?.trim()) {
+  if (!publishableKey) {
     return (
       <p className="text-sm text-red-700">
-        Payment UI is not configured. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to the environment.
+        Payment UI is not configured. The server must return <code className="text-xs">publishableKey</code> with the
+        checkout session, or set <code className="text-xs">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code>.
       </p>
     );
   }
@@ -84,13 +91,13 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         ref={mountRef}
-        className="min-h-[24rem] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white"
+        className="min-h-[22rem] w-full overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-neutral-200/80"
       />
-      <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={onBack}>
-        Back to reservation details
+      <Button type="button" variant="secondary" className="w-full" onClick={onBack}>
+        ← Edit reservation details
       </Button>
     </div>
   );

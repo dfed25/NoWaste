@@ -1,7 +1,12 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ADMIN_ROLE_COOKIE, normalizeRole, type AppRole } from "@/lib/admin";
-import { AUTH_COOKIE_NAME, RESTAURANT_ID_COOKIE_NAME } from "@/lib/auth-cookies";
+import {
+  AUTH_COOKIE_NAME,
+  NW_RESTAURANT_APP_STATUS_COOKIE_NAME,
+  RESTAURANT_ID_COOKIE_NAME,
+} from "@/lib/auth-cookies";
+import { normalizeRestaurantApplicationStatus, type RestaurantApplicationStatus } from "@/lib/restaurant-application-status";
 
 export const NW_SESSION_SIGNATURE_COOKIE_NAME = "nw-session-sig";
 
@@ -11,6 +16,8 @@ type VerifiedSession = {
     role?: string;
     /** Present for restaurant_staff when the signed session includes scope. */
     scopedRestaurantId?: string;
+    /** Present for restaurant_staff when signed session includes application status. */
+    restaurantApplicationStatus?: RestaurantApplicationStatus;
   };
 };
 
@@ -46,10 +53,23 @@ function hasValidSignature(value: string, providedSignature: string, secret: str
   return timingSafeEqual(a, b);
 }
 
-/** Canonical string covered by `nw-session-sig` (restaurant segment empty unless staff). */
-export function buildNwSessionCanonical(role: string, restaurantIdForStaff: string) {
+/**
+ * Canonical string covered by `nw-session-sig`.
+ * For restaurant_staff, restaurant id and application status are included (empty strings when unknown).
+ */
+export function buildNwSessionCanonical(
+  role: string,
+  restaurantIdForStaff: string,
+  restaurantAppStatusForStaff = "",
+) {
   const segment = role === "restaurant_staff" ? restaurantIdForStaff : "";
-  return `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=${role};${RESTAURANT_ID_COOKIE_NAME}=${segment}`;
+  const statusSegment = role === "restaurant_staff" ? restaurantAppStatusForStaff : "";
+  return `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=${role};${RESTAURANT_ID_COOKIE_NAME}=${segment};${NW_RESTAURANT_APP_STATUS_COOKIE_NAME}=${statusSegment}`;
+}
+
+/** Pre–application-gate staff sessions (three cookie fields only, no app-status segment). */
+export function buildLegacyStaffNwSessionCanonical(restaurantIdForStaff: string) {
+  return `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=restaurant_staff;${RESTAURANT_ID_COOKIE_NAME}=${restaurantIdForStaff}`;
 }
 
 export function signNwSessionCanonical(canonical: string, secret: string) {
@@ -69,21 +89,42 @@ export function verifyServerSession(request: Request): VerifiedSession {
 
   const restaurantCookie = cookies[RESTAURANT_ID_COOKIE_NAME] ?? "";
   const effectiveRestaurant = role === "restaurant_staff" ? restaurantCookie : "";
-  const canonicalNew = buildNwSessionCanonical(role, effectiveRestaurant);
+  const appStatusCookie =
+    role === "restaurant_staff" ? (cookies[NW_RESTAURANT_APP_STATUS_COOKIE_NAME] ?? "") : "";
+  const canonicalNew = buildNwSessionCanonical(role, effectiveRestaurant, appStatusCookie);
 
-  let isValid = hasValidSignature(canonicalNew, signature, secret);
-  if (!isValid && role !== "restaurant_staff") {
+  const matchedFull = hasValidSignature(canonicalNew, signature, secret);
+  let matchedLegacyStaff = false;
+  if (!matchedFull && role === "restaurant_staff") {
+    matchedLegacyStaff = hasValidSignature(
+      buildLegacyStaffNwSessionCanonical(effectiveRestaurant),
+      signature,
+      secret,
+    );
+  }
+  let matchedLegacyAdmin = false;
+  if (!matchedFull && !matchedLegacyStaff && role !== "restaurant_staff") {
     const legacy = `${AUTH_COOKIE_NAME}=1;${ADMIN_ROLE_COOKIE}=${role}`;
-    isValid = hasValidSignature(legacy, signature, secret);
+    matchedLegacyAdmin = hasValidSignature(legacy, signature, secret);
   }
 
-  if (!isValid) return { isAuthenticated: false };
+  if (!matchedFull && !matchedLegacyStaff && !matchedLegacyAdmin) {
+    return { isAuthenticated: false };
+  }
+
+  const restaurantApplicationStatus =
+    role === "restaurant_staff"
+      ? matchedFull
+        ? normalizeRestaurantApplicationStatus(appStatusCookie || undefined)
+        : normalizeRestaurantApplicationStatus(undefined)
+      : undefined;
 
   return {
     isAuthenticated: true,
     user: {
       role,
       scopedRestaurantId: role === "restaurant_staff" ? effectiveRestaurant : undefined,
+      restaurantApplicationStatus,
     },
   };
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveListingAuthContext } from "@/lib/listing-auth-context";
+import { resolveListingAuthContext, staffRestaurantOperationsBlocked } from "@/lib/listing-auth-context";
 import { getDonationQueue, setDonationQueue } from "@/lib/donation-queue-store";
 import { donationQueuePayloadSchema } from "@/lib/validation";
 
@@ -37,6 +37,10 @@ export async function GET(request: Request) {
   if (!resolved.ok) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   }
+  const staffBlock = staffRestaurantOperationsBlocked(context);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
+  }
 
   try {
     const queue = await getDonationQueue(resolved.restaurantId);
@@ -55,6 +59,10 @@ export async function PUT(request: Request) {
   const resolved = resolveRestaurantId(context, request);
   if (!resolved.ok) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  }
+  const staffBlock = staffRestaurantOperationsBlocked(context);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
   }
 
   let raw: unknown;

@@ -2,6 +2,16 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const serverUrl = process.env.CAP_SERVER_URL;
 
+/**
+ * Without a matching entry, Capacitor iOS treats top-level navigations to non-app hosts as external
+ * and calls `UIApplication.open` → Safari (see WebViewDelegationHandler).
+ *
+ * Stripe uses many hosts (`*.stripe.com`, `*.stripe.network`, nested subdomains, 3DS/wallet redirects).
+ * Wildcards like `*.stripe.com` do NOT match `a.b.stripe.com` (segment-count rules), and miss
+ * `stripe.network` entirely — so listing domains is fragile. `"*"` keeps payment flows in the WebView.
+ */
+const PAYMENT_ALLOW_NAVIGATION = ["*"];
+
 const config: CapacitorConfig = {
   appId: "com.nowaste.app",
   appName: "NoWaste",
@@ -11,14 +21,15 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "automatic",
   },
-  ...(serverUrl
-    ? {
-        server: {
+  server: {
+    allowNavigation: PAYMENT_ALLOW_NAVIGATION,
+    ...(serverUrl
+      ? {
           url: serverUrl,
           cleartext: serverUrl.startsWith("http://"),
-        },
-      }
-    : {}),
+        }
+      : {}),
+  },
 };
 
 export default config;

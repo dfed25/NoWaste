@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { deleteManagedListing, updateManagedListing } from "@/lib/marketplace-store";
-import { resolveListingAuthContext } from "@/lib/listing-auth-context";
+import { resolveListingAuthContext, staffRestaurantOperationsBlocked } from "@/lib/listing-auth-context";
 
 function toIsoOrUndefined(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -52,6 +52,10 @@ export async function PATCH(
   }
   if (auth.role === "restaurant_staff" && !auth.scopedRestaurantId) {
     return NextResponse.json({ error: "Missing restaurant scope" }, { status: 403 });
+  }
+  const staffBlock = staffRestaurantOperationsBlocked(auth);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
   }
 
   const payloadResult = await request
@@ -109,6 +113,10 @@ export async function DELETE(
   }
   if (auth.role === "restaurant_staff" && !auth.scopedRestaurantId) {
     return NextResponse.json({ error: "Missing restaurant scope" }, { status: 403 });
+  }
+  const staffBlock = staffRestaurantOperationsBlocked(auth);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
   }
 
   const { listingId } = await context.params;

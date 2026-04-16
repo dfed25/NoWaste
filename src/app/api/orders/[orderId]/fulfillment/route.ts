@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveRestaurantIdForOrder } from "@/lib/marketplace";
 import { getOrderByIdUnscoped, updateOrderFulfillment } from "@/lib/order-store";
-import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
+import {
+  resolveListingAuthContext,
+  staffRestaurantOperationsBlocked,
+  type ListingAuthContext,
+} from "@/lib/listing-auth-context";
 
 const bodySchema = z
   .object({
@@ -35,6 +39,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
   }
   if (!canManageFulfillment(auth.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const staffBlock = staffRestaurantOperationsBlocked(auth);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
   }
 
   let raw: unknown;

@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import Stripe from "stripe";
 import { getListingById } from "@/lib/marketplace";
-import { createReservedOrder, deleteOrder } from "@/lib/order-store";
+import { createReservedOrder, deleteOrder, getOrderById } from "@/lib/order-store";
 import { CUSTOMER_ID_COOKIE_NAME } from "@/lib/auth-cookies";
 
 type CheckoutBody = {
   listingId: string;
   listingTitle: string;
   quantity: number | string;
+  /** Reuse an existing reserved order when refreshing the Stripe session (e.g. enable Link). */
+  orderId?: string;
+  /** When true, Stripe may show Link in Checkout; default hides Link so card / Apple Pay show first. */
+  showStripeLink?: boolean;
   customer: {
     name: string;
     email: string;
@@ -51,6 +55,10 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
   if (!body.customer || typeof body.customer !== "object") return false;
 
   const customer = body.customer as Partial<CheckoutBody["customer"]>;
+  if (body.orderId !== undefined) {
+    if (typeof body.orderId !== "string" || body.orderId.trim().length === 0) return false;
+  }
+  if (body.showStripeLink !== undefined && typeof body.showStripeLink !== "boolean") return false;
   return (
     typeof customer.name === "string" &&
     customer.name.trim().length > 0 &&
@@ -62,6 +70,7 @@ function isValidCheckoutBody(value: unknown): value is CheckoutBody {
 }
 
 export async function POST(request: Request) {
+  const noHostedCheckout = request.headers.get("x-no-hosted-checkout") === "1";
   let body: unknown;
   try {
     body = await request.json();
@@ -94,24 +103,48 @@ export async function POST(request: Request) {
     );
   }
   const customerId = (await readUserIdFromCookie(request)) ?? "demo-customer";
+  const showStripeLink = Boolean(body.showStripeLink);
+  const reuseOrderId = typeof body.orderId === "string" ? body.orderId.trim() : "";
+
   let orderId: string;
-  try {
-    const order = await createReservedOrder({
-      customerId,
-      listingId: listing.id,
-      listingTitle: listing.title,
-      restaurantId: listing.restaurantId,
-      restaurantName: listing.restaurantName,
-      quantity,
-      totalCents: listing.priceCents * quantity,
-      pickupWindowStart: listing.pickupWindowStart,
-      pickupWindowEnd: listing.pickupWindowEnd,
-      paymentStatus: stripeSecretKey ? "pending" : "paid",
-    });
-    orderId = order.id;
-  } catch (error) {
-    console.error("Failed to create reserved order before checkout", error);
-    return NextResponse.json({ error: "Unable to create reservation" }, { status: 500 });
+  if (reuseOrderId) {
+    const existing = await getOrderById(reuseOrderId, customerId);
+    if (
+      !existing ||
+      existing.listingId !== body.listingId ||
+      existing.quantity !== quantity ||
+      existing.fulfillmentStatus !== "reserved" ||
+      existing.paymentStatus !== "pending" ||
+      existing.totalCents !== listing.priceCents * quantity
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This reservation changed or expired. Go back and tap Continue to payment again.",
+        },
+        { status: 409 },
+      );
+    }
+    orderId = existing.id;
+  } else {
+    try {
+      const order = await createReservedOrder({
+        customerId,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        restaurantId: listing.restaurantId,
+        restaurantName: listing.restaurantName,
+        quantity,
+        totalCents: listing.priceCents * quantity,
+        pickupWindowStart: listing.pickupWindowStart,
+        pickupWindowEnd: listing.pickupWindowEnd,
+        paymentStatus: stripeSecretKey ? "pending" : "paid",
+      });
+      orderId = order.id;
+    } catch (error) {
+      console.error("Failed to create reserved order before checkout", error);
+      return NextResponse.json({ error: "Unable to create reservation" }, { status: 500 });
+    }
   }
 
   const confirmationUrl = `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
@@ -126,14 +159,43 @@ export async function POST(request: Request) {
   const returnUrl = `${appUrl}/orders/confirmation?listingId=${encodeURIComponent(
     listing.id,
   )}&quantity=${quantity}&orderId=${encodeURIComponent(orderId)}&session_id={CHECKOUT_SESSION_ID}`;
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-  const useEmbeddedCheckout = Boolean(publishableKey?.trim());
+  const publishableKey =
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ||
+    process.env.STRIPE_PUBLISHABLE_KEY?.trim() ||
+    "";
+  const useEmbeddedCheckout = Boolean(publishableKey);
+  if (noHostedCheckout && !useEmbeddedCheckout) {
+    return NextResponse.json(
+      {
+        error:
+          "In-app checkout requires Stripe embedded mode. Configure STRIPE_PUBLISHABLE_KEY (or NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) on the server and restart.",
+      },
+      { status: 503 },
+    );
+  }
 
   const stripe = new Stripe(stripeSecretKey);
   let session: Stripe.Checkout.Session;
   try {
+    const linkWalletOptions: Pick<
+      Stripe.Checkout.SessionCreateParams,
+      "wallet_options"
+    > = showStripeLink
+      ? {}
+      : { wallet_options: { link: { display: "never" } } };
+
+    const checkoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
+      display_name: "NoWaste",
+      background_color: "#fafaf9",
+      button_color: "#16a34a",
+      font_family: "inter",
+      border_style: "rounded",
+    };
+
     const sessionBase = {
       mode: "payment" as const,
+      // Restrict to card rails only (Apple Pay appears under card when enabled in Stripe + device supports it).
+      payment_method_types: ["card"] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
       customer_email: body.customer.email,
       metadata: {
         listingId: listing.id,
@@ -159,12 +221,16 @@ export async function POST(request: Request) {
     if (useEmbeddedCheckout) {
       session = await stripe.checkout.sessions.create({
         ...sessionBase,
+        ...linkWalletOptions,
+        branding_settings: checkoutBranding,
         ui_mode: "embedded_page",
         return_url: returnUrl,
       });
     } else {
       session = await stripe.checkout.sessions.create({
         ...sessionBase,
+        ...linkWalletOptions,
+        branding_settings: checkoutBranding,
         success_url: returnUrl,
         cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
       });
@@ -197,9 +263,13 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-    return NextResponse.json({ clientSecret });
+    return NextResponse.json({
+      clientSecret,
+      publishableKey,
+      orderId,
+    });
   }
 
-  return NextResponse.json({ checkoutUrl: session.url });
+  return NextResponse.json({ checkoutUrl: session.url, orderId });
 }
 

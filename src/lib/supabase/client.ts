@@ -4,7 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookies";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
+  "";
 
 export { AUTH_COOKIE_NAME };
 
@@ -14,7 +17,7 @@ export function getSupabaseBrowserClient() {
   if (!browserClient) {
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error(
-        "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "Missing NEXT_PUBLIC_SUPABASE_URL and public Supabase key (NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)",
       );
     }
 

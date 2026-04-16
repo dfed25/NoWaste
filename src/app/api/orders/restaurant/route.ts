@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listOrdersForRestaurant } from "@/lib/order-store";
-import { resolveListingAuthContext } from "@/lib/listing-auth-context";
+import { resolveListingAuthContext, staffRestaurantOperationsBlocked } from "@/lib/listing-auth-context";
 import { OrderApiErrorCode } from "@/lib/order-api-codes";
 
 function canViewRestaurantOrders(role: string | undefined) {
@@ -14,6 +14,11 @@ export async function GET(request: Request) {
   }
   if (!canViewRestaurantOrders(context.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const staffBlock = staffRestaurantOperationsBlocked(context);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
   }
 
   const url = new URL(request.url);

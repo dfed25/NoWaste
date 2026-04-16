@@ -12,6 +12,7 @@ export async function GET(request: Request) {
         trust: "signed" as const,
         role: session.user.role,
         scopedRestaurantId: session.user.scopedRestaurantId ?? null,
+        restaurantApplicationStatus: session.user.restaurantApplicationStatus ?? null,
       },
       { status: 200, headers: noStore },
     );
@@ -25,13 +26,20 @@ export async function GET(request: Request) {
         trust: "cookie" as const,
         role: fallback,
         scopedRestaurantId: null,
+        restaurantApplicationStatus: null,
       },
       { status: 200, headers: noStore },
     );
   }
 
   return NextResponse.json(
-    { authenticated: false, trust: "none" as const, role: null, scopedRestaurantId: null },
+    {
+      authenticated: false,
+      trust: "none" as const,
+      role: null,
+      scopedRestaurantId: null,
+      restaurantApplicationStatus: null,
+    },
     { status: 200, headers: noStore },
   );
 }

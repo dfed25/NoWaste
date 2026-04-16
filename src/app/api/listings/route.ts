@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import type { ListingItem, ManagedListing } from "@/lib/marketplace";
-import { restaurants } from "@/lib/marketplace";
 import { listAllListings, listManagedListings, saveListing } from "@/lib/marketplace-store";
-import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
+import {
+  resolveListingAuthContext,
+  staffRestaurantOperationsBlocked,
+  type ListingAuthContext,
+} from "@/lib/listing-auth-context";
+import { resolveRestaurantForListing } from "@/lib/listing-restaurant-resolve";
 import { listingSchema } from "@/lib/validation";
 
 function canManageListings(role: string | undefined) {
@@ -104,6 +108,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const staffBlock = staffRestaurantOperationsBlocked(context);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
+  }
+
   let payload: unknown;
   try {
     payload = await request.json();
@@ -129,7 +138,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: targetResolution.error }, { status: targetResolution.status });
   }
 
-  const restaurant = restaurants.find((candidate) => candidate.id === targetResolution.restaurantId);
+  let restaurant;
+  try {
+    restaurant = await resolveRestaurantForListing(targetResolution.restaurantId);
+  } catch (e) {
+    console.error("resolveRestaurantForListing", e);
+    return NextResponse.json({ error: "Failed to resolve restaurant" }, { status: 500 });
+  }
   if (!restaurant) {
     return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
   }
