@@ -3,7 +3,11 @@ import { z } from "zod";
 import type { CustomerOrder } from "@/lib/marketplace";
 import { resolveRestaurantIdForOrder } from "@/lib/marketplace";
 import { getOrderByIdUnscoped } from "@/lib/order-store";
-import { resolveListingAuthContext, type ListingAuthContext } from "@/lib/listing-auth-context";
+import {
+  resolveListingAuthContext,
+  staffRestaurantOperationsBlocked,
+  type ListingAuthContext,
+} from "@/lib/listing-auth-context";
 import { finalizeReservedPickupWithAudit } from "@/lib/pickup-fulfillment-with-audit";
 import { effectivePickupFulfillmentFromOrder, verifyPickupCode, type PickupOrder } from "@/lib/pickup";
 import { listPickupAuditEventsForScope, tryAppendPickupAuditEvent } from "@/lib/pickup-audit-store";
@@ -67,6 +71,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing restaurant scope" }, { status: 403 });
   }
 
+  const staffBlock = staffRestaurantOperationsBlocked(context);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
+  }
+
   try {
     const events = await listPickupAuditEventsForScope({ restaurantId, isAdmin });
     return NextResponse.json({ events }, { status: 200 });
@@ -84,6 +93,10 @@ export async function POST(request: Request) {
   const context = await resolveListingAuthContext(request);
   if (!context.isAuthenticated || !canManage(context.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const staffBlock = staffRestaurantOperationsBlocked(context);
+  if (staffBlock) {
+    return NextResponse.json({ error: staffBlock.error }, { status: staffBlock.status });
   }
 
   let raw: unknown;

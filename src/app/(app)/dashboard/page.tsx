@@ -4,6 +4,7 @@ import { RestaurantDashboardShell } from "@/components/dashboard/restaurant-dash
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { RESTAURANT_ONBOARDING_PATH } from "@/lib/auth/safe-next-path";
+import { canStaffOperateMarketplace } from "@/lib/restaurant-application-status";
 import { verifyServerSession } from "@/lib/server-session";
 import { getRestaurantDashboardData } from "@/lib/restaurant-dashboard-metrics";
 
@@ -26,6 +27,9 @@ export default async function DashboardPage() {
     redirect(RESTAURANT_ONBOARDING_PATH);
   }
 
+  const applicationStatus = session.user.restaurantApplicationStatus;
+  const isLive = canStaffOperateMarketplace(applicationStatus);
+
   const data = await getRestaurantDashboardData(restaurantId);
 
   return (
@@ -36,6 +40,20 @@ export default async function DashboardPage() {
           Overview of tonight&apos;s listings, activity, and summary metrics.
         </p>
       </div>
+
+      {!isLive ? (
+        <Card className="border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-950">
+          <p className="font-medium">Marketplace tools are limited until you are approved.</p>
+          <p className="mt-1 text-amber-900/90">
+            Current status:{" "}
+            <span className="font-mono text-xs">{applicationStatus ?? "unknown"}</span>. Continue setup on{" "}
+            <a className="font-medium underline" href={RESTAURANT_ONBOARDING_PATH}>
+              restaurant onboarding
+            </a>
+            .
+          </p>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="space-y-2 border-brand-100 bg-gradient-to-r from-brand-50 to-white">

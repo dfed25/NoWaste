@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { RestaurantOnboardingShell } from "@/components/onboarding/restaurant-onboarding-shell";
 import { RESTAURANT_ONBOARDING_LOGIN_HREF } from "@/lib/auth/safe-next-path";
+import { normalizeRestaurantApplicationStatus } from "@/lib/restaurant-application-status";
 import { verifyServerSession } from "@/lib/server-session";
 
 type PageProps = {
@@ -19,6 +20,9 @@ export default async function RestaurantOnboardingPage({ searchParams }: PagePro
 
   const role = session.user?.role;
   const scopedId = session.user?.scopedRestaurantId;
+  const applicationStatus = normalizeRestaurantApplicationStatus(
+    session.user?.restaurantApplicationStatus,
+  );
 
   if (role === "customer") {
     redirect("/get-started?notice=restaurant-only");
@@ -45,6 +49,7 @@ export default async function RestaurantOnboardingPage({ searchParams }: PagePro
         variant="staff"
         hasRestaurantScope={Boolean(scopedId)}
         scopedRestaurantId={scopedId}
+        applicationStatus={applicationStatus}
       />
     </section>
   );

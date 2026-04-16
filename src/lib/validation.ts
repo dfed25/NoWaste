@@ -6,14 +6,31 @@ export const signUpSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+export const foodServiceTypeSchema = z.enum([
+  "restaurant",
+  "cafe",
+  "bakery",
+  "catering",
+  "grocery",
+  "food_truck",
+  "other",
+]);
+
 /** Restaurant sign-up: business details + attestation; enrollment code validated on the server when configured. */
 export const restaurantStaffSignUpSchema = signUpSchema.extend({
   name: z.string().trim().min(2, "Name is required"),
   businessLegalName: z.string().trim().min(2, "Legal business name is required"),
+  businessAddress: z.string().trim().min(8, "Business address is required"),
+  businessEmail: z.email("Valid business email is required"),
   businessPhone: z.string().trim().min(10, "Enter a valid business phone number"),
+  foodServiceType: foodServiceTypeSchema,
   foodServiceAttestation: z.boolean().refine((v) => v === true, {
     message: "Confirm that you represent a food service business",
   }),
+  termsAccepted: z.boolean().refine((v) => v === true, {
+    message: "You must accept the Terms of Service",
+  }),
+  businessRegistrationId: z.string().trim().optional(),
   enrollmentCode: z.string().trim().optional(),
 });
 
