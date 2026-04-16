@@ -24,7 +24,7 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
   const isSoldOut = listing.quantityRemaining < 1;
 
   return (
-    <section className="space-y-6">
+    <section className="mx-auto max-w-lg space-y-6">
       {cancelled ? (
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           <p className="text-sm">
@@ -35,33 +35,24 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
 
       <Card
         variant="elevated"
-        className="space-y-2 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/30"
+        className="space-y-1 border-neutral-200/80 bg-gradient-to-br from-white to-brand-100/35"
       >
-        <h1 className="text-title-lg">Checkout</h1>
+        <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Checkout</p>
+        <h1 className="text-title-lg">Reserve & pay</h1>
         <p className="text-body-sm text-neutral-600">
-          Reserve your pickup and complete payment.
+          Confirm your pickup details, then pay securely in the app.
         </p>
       </Card>
 
-      <Card className="space-y-2 border-neutral-200/80">
-        <h2 className="text-title-md">{listing.title}</h2>
-        <p className="text-sm text-neutral-600">{listing.restaurantName}</p>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <p className="text-sm text-neutral-700">
-            Unit price: <strong>${(listing.priceCents / 100).toFixed(2)}</strong>
-          </p>
-          <p className="text-sm text-neutral-700">
-            Available: <strong>{listing.quantityRemaining}</strong>
-          </p>
-          <p className="text-sm text-neutral-700">
-            Distance: <strong>{listing.distanceMiles} mi</strong>
-          </p>
-        </div>
-      </Card>
-
       {isSoldOut ? (
-        <Card className="space-y-2 border-red-200 bg-red-50 text-red-900">
-          <p className="text-sm font-medium">This listing is sold out.</p>
+        <Card className="space-y-3 border-red-200 bg-red-50 text-red-900">
+          <div>
+            <p className="text-sm font-medium">This listing is sold out.</p>
+            <p className="mt-1 text-sm text-red-800/90">
+              <span className="font-medium">{listing.title}</span>
+              <span className="text-red-800/80"> · {listing.restaurantName}</span>
+            </p>
+          </div>
           <p className="text-sm">Browse other listings and reserve another pickup.</p>
           <Link
             href="/"
@@ -74,7 +65,11 @@ export default async function CheckoutPage({ params, searchParams }: CheckoutPag
         <ReservationCheckoutForm
           listingId={listing.id}
           listingTitle={listing.title}
+          restaurantName={listing.restaurantName}
           unitPriceCents={listing.priceCents}
+          pickupWindowStart={listing.pickupWindowStart}
+          pickupWindowEnd={listing.pickupWindowEnd}
+          quantityAvailable={listing.quantityRemaining}
         />
       )}
     </section>

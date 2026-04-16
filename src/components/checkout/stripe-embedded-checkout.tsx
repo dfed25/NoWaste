@@ -91,13 +91,13 @@ export function StripeEmbeddedCheckout({ clientSecret, onBack, publishableKey: p
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         ref={mountRef}
-        className="min-h-[24rem] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white"
+        className="min-h-[22rem] w-full overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-neutral-200/80"
       />
-      <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={onBack}>
-        Back to reservation details
+      <Button type="button" variant="secondary" className="w-full" onClick={onBack}>
+        ← Edit reservation details
       </Button>
     </div>
   );

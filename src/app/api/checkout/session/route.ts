@@ -184,6 +184,14 @@ export async function POST(request: Request) {
       ? {}
       : { wallet_options: { link: { display: "never" } } };
 
+    const checkoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
+      display_name: "NoWaste",
+      background_color: "#fafaf9",
+      button_color: "#16a34a",
+      font_family: "inter",
+      border_style: "rounded",
+    };
+
     const sessionBase = {
       mode: "payment" as const,
       // Restrict to card rails only (Apple Pay appears under card when enabled in Stripe + device supports it).
@@ -214,6 +222,7 @@ export async function POST(request: Request) {
       session = await stripe.checkout.sessions.create({
         ...sessionBase,
         ...linkWalletOptions,
+        branding_settings: checkoutBranding,
         ui_mode: "embedded_page",
         return_url: returnUrl,
       });
@@ -221,6 +230,7 @@ export async function POST(request: Request) {
       session = await stripe.checkout.sessions.create({
         ...sessionBase,
         ...linkWalletOptions,
+        branding_settings: checkoutBranding,
         success_url: returnUrl,
         cancel_url: `${appUrl}/checkout/${encodeURIComponent(listing.id)}?cancelled=1`,
       });
